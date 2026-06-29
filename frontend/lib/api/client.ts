@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from "axios";
+import axios, { AxiosInstance, AxiosError } from "axios";
 
 class ApiClient {
   private client: AxiosInstance;
@@ -11,64 +11,103 @@ class ApiClient {
       headers: {
         "Content-Type": "application/json",
       },
+      withCredentials: true, // ✅ Отправлять куки
     });
 
+    // Интерсептор для добавления access токена
     this.client.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem("access_token");
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+        const accessToken = this.getAccessToken();
+        if (accessToken) {
+          config.headers.Authorization = `Bearer ${accessToken}`;
         }
         return config;
       },
       (error) => Promise.reject(error),
     );
 
+    // Интерсептор для обновления токена
     this.client.interceptors.response.use(
       (response) => response,
-      (error: AxiosError) => {
-        if (error.response?.status === 401) {
-          console.error("Unauthorized, redirecting to login...");
+      async (error: AxiosError) => {
+        const originalRequest = error.config as any;
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+
+          try {
+            const response = await this.client.post("/auth/refresh/");
+            const newAccessToken = response.data.access;
+            this.setAccessToken(newAccessToken);
+
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return this.client(originalRequest);
+          } catch (refreshError) {
+            this.clearTokens();
+            window.location.href = "/auth/login";
+            return Promise.reject(refreshError);
+          }
         }
+
         return Promise.reject(error);
       },
     );
   }
 
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.get<T>(url, config);
+  private getAccessToken(): string | null {
+    return localStorage.getItem("access_token");
+  }
+
+  private setAccessToken(token: string): void {
+    localStorage.setItem("access_token", token);
+  }
+
+  private clearTokens(): void {
+    localStorage.removeItem("access_token");
+  }
+
+  async login(email: string, password: string): Promise<{ user: any }> {
+    const response = await this.client.post("/auth/login/", {
+      email,
+      password,
+    });
+    const { access, user } = response.data;
+    this.setAccessToken(access);
+    return { user };
+  }
+
+  async logout(): Promise<void> {
+    try {
+      await this.client.post("/auth/logout/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+    this.clearTokens();
+    window.location.href = "/";
+  }
+
+  async get<T>(url: string): Promise<T> {
+    const response = await this.client.get<T>(url);
     return response.data;
   }
 
-  async post<T>(
-    url: string,
-    data?: unknown,
-    config?: AxiosRequestConfig,
-  ): Promise<T> {
-    const response = await this.client.post<T>(url, data, config);
+  async post<T>(url: string, data?: any): Promise<T> {
+    const response = await this.client.post<T>(url, data);
     return response.data;
   }
 
-  async put<T>(
-    url: string,
-    data?: unknown,
-    config?: AxiosRequestConfig,
-  ): Promise<T> {
-    const response = await this.client.put<T>(url, data, config);
+  async put<T>(url: string, data?: any): Promise<T> {
+    const response = await this.client.put<T>(url, data);
     return response.data;
   }
 
-  async patch<T>(
-    url: string,
-    data?: unknown,
-    config?: AxiosRequestConfig,
-  ): Promise<T> {
-    const response = await this.client.patch<T>(url, data, config);
+  async patch<T>(url: string, data?: any): Promise<T> {
+    const response = await this.client.patch<T>(url, data);
     return response.data;
   }
 
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.delete<T>(url, config);
+  async delete<T>(url: string): Promise<T> {
+    const response = await this.client.delete<T>(url);
     return response.data;
   }
 }
