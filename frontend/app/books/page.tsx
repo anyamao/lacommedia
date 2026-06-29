@@ -8,15 +8,18 @@ import { Book } from "@/lib/api/types";
 export default function BooksPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("");
-  const { books, loading, error } = useBooks({
+
+  const { books, loading, error, mutate } = useBooks({
     search: searchTerm || undefined,
     genre: selectedGenre || undefined,
   });
 
   const handleBookClick = (book: Book) => {
+    // Переход на страницу книги или открытие модалки
     console.log("Clicked book:", book.name);
   };
 
+  // Генерация списка жанров из загруженных книг
   const genres = [...new Set(books.map((b) => b.genre))];
 
   return (
@@ -24,12 +27,13 @@ export default function BooksPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Заголовок */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800">Все книги</h1>
+          <h1 className="text-4xl font-bold text-gray-800">📚 Все книги</h1>
           <p className="text-gray-500 mt-1">
             {loading ? "Загрузка..." : `Найдено книг: ${books.length}`}
           </p>
         </div>
 
+        {/* Фильтры */}
         <div className="flex flex-wrap gap-4 mb-8">
           <input
             type="text"
@@ -65,6 +69,7 @@ export default function BooksPage() {
           )}
         </div>
 
+        {/* Список книг */}
         <BookList
           books={books}
           loading={loading}

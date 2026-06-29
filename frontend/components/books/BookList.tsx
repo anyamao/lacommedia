@@ -7,7 +7,7 @@ import BookSkeleton from "./BookSkeleton";
 interface BookListProps {
   books: Book[];
   loading: boolean;
-  error: string | null;
+  error: string | null; // ✅ string | null
   onBookClick?: (book: Book) => void;
 }
 

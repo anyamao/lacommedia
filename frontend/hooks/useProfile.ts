@@ -19,7 +19,14 @@ export interface UserProfile {
   updated_at: string;
 }
 
-export function useProfile() {
+interface UseProfileReturn {
+  profile: UserProfile | null;
+  isLoading: boolean;
+  isError: string | null; // ✅ string | null
+  mutate: () => void;
+}
+
+export function useProfile(): UseProfileReturn {
   const { data, error, mutate, isLoading } = useSWR(
     "/auth/profile/",
     () => apiClient.get<UserProfile>("/auth/profile/"),
@@ -32,7 +39,11 @@ export function useProfile() {
   return {
     profile: data || null,
     isLoading,
-    isError: error,
+    isError: error
+      ? error instanceof Error
+        ? error.message
+        : String(error)
+      : null, // ✅ Преобразуем Error в string
     mutate,
   };
 }

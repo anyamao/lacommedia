@@ -7,29 +7,35 @@ import { Book, BookFilters } from "@/lib/api/types";
 interface UseBooksReturn {
   books: Book[];
   loading: boolean;
-  error: Error | null;
+  error: string | null; // ✅ string | null
   mutate: () => void;
 }
 
 export function useBooks(filters?: BookFilters): UseBooksReturn {
-  // Генерируем уникальный ключ на основе фильтров
-  const key = ["books", JSON.stringify(filters || {})];
+  const cacheKey = filters ? ["books", JSON.stringify(filters)] : ["books"];
 
-  const { data, error, mutate } = useSWR(
-    key,
+  const { data, error, mutate, isLoading } = useSWR(
+    cacheKey,
     () => bookService.getBooks(filters),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       dedupingInterval: 60000,
       refreshInterval: 0,
+      errorRetryCount: 3,
+      errorRetryInterval: 5000,
+      keepPreviousData: true,
     },
   );
 
   return {
     books: data || [],
-    loading: !error && !data,
-    error: error || null,
+    loading: isLoading,
+    error: error
+      ? error instanceof Error
+        ? error.message
+        : String(error)
+      : null, // ✅ Преобразуем Error в string
     mutate,
   };
 }
