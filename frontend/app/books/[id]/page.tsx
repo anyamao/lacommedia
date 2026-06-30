@@ -1,18 +1,41 @@
 "use client";
+
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useBook } from "@/hooks/useBook";
 import { ActionButtons } from "@/components/interactions/ActionButtons";
 import { CommentSection } from "@/components/interactions/CommentSection";
-import Link from "next/link";
 import { ReviewSection } from "@/components/books/ReviewSection";
+import { QuizSection } from "@/components/books/QuizSection";
+import Link from "next/link";
+import { useToast } from "@/context/ToastContext";
+
 export default function BookDetailPage() {
   const params = useParams();
   const id = parseInt(params.id as string);
   const { book, isLoading, isError } = useBook(id);
-  const [activeTab, setActiveTab] = useState<"comments" | "reviews">(
+  const { showToast } = useToast();
+  const [activeTab, setActiveTab] = useState<"comments" | "reviews" | "quiz">(
     "comments",
   );
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("🔗 Ссылка скопирована!", "success");
+    } catch {
+      // Fallback
+      const input = document.createElement("input");
+      input.value = url;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      showToast("🔗 Ссылка скопирована!", "success");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -53,12 +76,22 @@ export default function BookDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4 max-w-4xl">
-        <Link
-          href="/books"
-          className="text-blue-600 hover:underline mb-4 inline-block"
-        >
-          ← Все книги
-        </Link>
+        <div className="flex justify-between items-center mb-4">
+          <Link
+            href="/books"
+            className="text-blue-600 hover:underline inline-block"
+          >
+            ← Все книги
+          </Link>
+
+          {/* Кнопка поделиться */}
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition text-sm"
+          >
+            📤 Поделиться
+          </button>
+        </div>
 
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Обложка и заголовок */}
@@ -181,6 +214,32 @@ export default function BookDetailPage() {
                 <p className="text-gray-700 leading-relaxed">{book.review}</p>
               </div>
             )}
+
+            {/* Интересные факты */}
+            {book.interesting_facts && book.interesting_facts.length > 0 && (
+              <div>
+                <h2 className="text-xl font-semibold mb-3">
+                  💡 Интересные факты
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {book.interesting_facts.map(
+                    (fact: { title: string; fact: string }, index: number) => (
+                      <div
+                        key={index}
+                        className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 hover:shadow-md transition"
+                      >
+                        <h3 className="font-semibold text-blue-800 text-sm mb-1">
+                          {fact.title}
+                        </h3>
+                        <p className="text-gray-700 text-sm">{fact.fact}</p>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Идеи из книги */}
             {book.ideas && (
               <div>
                 <h2 className="text-xl font-semibold mb-3">💡 Идеи из книги</h2>
@@ -192,6 +251,8 @@ export default function BookDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Вкладки: Комментарии | Отзывы | Тест */}
           <div className="flex border-b bg-white px-6 pt-4">
             <button
               onClick={() => setActiveTab("comments")}
@@ -201,8 +262,7 @@ export default function BookDetailPage() {
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              💬 Комментарии (
-              {book.interactions?.filter((i) => i.text)?.length || 0})
+              💬 Комментарии
             </button>
             <button
               onClick={() => setActiveTab("reviews")}
@@ -215,15 +275,25 @@ export default function BookDetailPage() {
               ⭐ Отзывы ({book.reviews_count || 0})
               {book.average_rating > 0 && ` • ${book.average_rating}/10`}
             </button>
+            <button
+              onClick={() => setActiveTab("quiz")}
+              className={`px-4 py-2 text-sm font-medium transition ${
+                activeTab === "quiz"
+                  ? "border-b-2 border-blue-600 text-blue-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              🧠 Тест
+            </button>
           </div>
 
           {/* Контент вкладок */}
           <div className="bg-white rounded-b-2xl shadow-xl p-6 md:p-8">
-            {activeTab === "comments" ? (
+            {activeTab === "comments" && (
               <CommentSection content_type="books.book" object_id={book.id} />
-            ) : (
-              <ReviewSection bookId={book.id} />
             )}
+            {activeTab === "reviews" && <ReviewSection bookId={book.id} />}
+            {activeTab === "quiz" && <QuizSection bookId={book.id} />}
           </div>
         </div>
       </div>

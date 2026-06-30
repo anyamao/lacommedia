@@ -57,6 +57,12 @@ class Book(models.Model):
     average_rating = models.DecimalField(
         max_digits=3, decimal_places=1, default=0.0, verbose_name="Средний рейтинг"
     )
+    interesting_facts = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Интересные факты",
+        help_text="Массив объектов {title: 'Заголовок', fact: 'Текст факта'}",
+    )
     description = models.TextField(verbose_name="Описание")
     rating = models.DecimalField(
         max_digits=3,

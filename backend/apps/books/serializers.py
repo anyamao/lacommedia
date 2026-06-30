@@ -119,6 +119,7 @@ class BookSerializer(serializers.ModelSerializer):
             "brief_summary",
             "characters",
             "average_rating",
+            "interesting_facts",
             "reviews_count",
             "ideas",  # ✅ Отдельное поле, не слипшееся
         ]
