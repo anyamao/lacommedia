@@ -68,6 +68,15 @@ class Interaction(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def is_comment(self):
+        """Является ли эта запись комментарием"""
+        return (
+            self.interaction_type == self.InteractionType.LIKE
+            and self.text is not None
+            and self.text.strip() != ""
+        )
+
     class Meta:
         db_table = "interactions_interaction"
         indexes = [

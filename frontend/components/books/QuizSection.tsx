@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useToast } from "@/context/ToastContext";
-import { apiClient } from "@/lib/api/client";
 
-interface Question {
+interface QuizQuestion {
   id: number;
   question: string;
   options: string[];
@@ -12,48 +11,22 @@ interface Question {
 }
 
 interface QuizProps {
-  bookId: number;
+  contentId: number;
+  questions: QuizQuestion[];
 }
 
-export function QuizSection({ bookId }: QuizProps) {
-  const [questions, setQuestions] = useState<Question[]>([]);
+export function QuizSection({ contentId, questions }: QuizProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
   const [showResults, setShowResults] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [quizStarted, setQuizStarted] = useState(false);
   const [showCorrect, setShowCorrect] = useState(false);
   const { showToast } = useToast();
 
-  // Загружаем вопросы (пока заглушка, позже можно добавить API)
-  useEffect(() => {
-    // TODO: Загружать вопросы с бэкенда
-    // Пока используем заглушку для демонстрации
-    const mockQuestions: Question[] = [
-      {
-        id: 1,
-        question: 'Кто написал "Войну и мир"?',
-        options: ["Достоевский", "Толстой", "Пушкин", "Чехов"],
-        correct_answer: 1,
-      },
-      {
-        id: 2,
-        question: "В каком году была опубликована книга?",
-        options: ["1865", "1869", "1873", "1860"],
-        correct_answer: 1,
-      },
-      {
-        id: 3,
-        question: 'Сколько томов в "Войне и мире"?',
-        options: ["3", "4", "5", "6"],
-        correct_answer: 1,
-      },
-    ];
-    setQuestions(mockQuestions);
-    setSelectedAnswers(new Array(mockQuestions.length).fill(-1));
-    setLoading(false);
-  }, [bookId]);
+  // ✅ Используем вопросы из пропсов
+  const hasQuestions = questions && questions.length > 0;
 
+  // Инициализируем ответы при старте
   const startQuiz = () => {
     setQuizStarted(true);
     setShowResults(false);
@@ -96,16 +69,19 @@ export function QuizSection({ bookId }: QuizProps) {
     return correct;
   };
 
-  if (loading) {
+  // ✅ Если нет вопросов — показываем сообщение
+  if (!hasQuestions) {
     return (
-      <div className="text-gray-500 text-center py-8">Загрузка теста...</div>
+      <div className="text-center py-8">
+        <p className="text-gray-500">Для этого контента пока нет теста</p>
+      </div>
     );
   }
 
   if (!quizStarted) {
     return (
       <div className="text-center py-8">
-        <h3 className="text-xl font-semibold mb-3">🧠 Тест по книге</h3>
+        <h3 className="text-xl font-semibold mb-3">🧠 Тест по контенту</h3>
         <p className="text-gray-600 mb-4">
           Проверьте свои знания! В тесте {questions.length} вопросов.
         </p>
@@ -173,6 +149,7 @@ export function QuizSection({ bookId }: QuizProps) {
                     : "border-gray-200 hover:bg-gray-50"
                 }`}
               >
+                {/* ... остальной код вопроса */}
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0">
                     <span

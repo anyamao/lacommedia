@@ -4,7 +4,49 @@ export interface ApiResponse<T> {
   previous: string | null;
   results: T[];
 }
+export type ContentType = "book" | "movie" | "painting" | "music";
 
+export interface Content {
+  id: number;
+  content_type: ContentType;
+  content_type_display: string;
+  title: string;
+  description: string;
+  cover: string | null;
+  cover_url: string | null;
+  short_description: string;
+  rating: number;
+  year: number | null;
+  genre: string;
+  country: string;
+  views_count: number;
+  hours_to_read: number;
+  brief_summary: string;
+  review: string;
+  ideas: string;
+  interesting_facts: { title: string; fact: string }[];
+  extra_data: Record<string, any>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  reviews_count: number;
+  characters: Character[];
+  quiz_questions: QuizQuestion[];
+}
+
+export interface ContentFilters {
+  search?: string;
+  content_type?: ContentType;
+  genre?: string;
+  country?: string;
+  genre__in?: string;
+  country__in?: string;
+  year__gte?: number;
+  year__lte?: number;
+  rating__gte?: number;
+  rating__lte?: number;
+  ordering?: string;
+}
 export interface Character {
   id: number;
   first_name: string;

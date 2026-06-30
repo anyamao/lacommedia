@@ -11,15 +11,19 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # JWT
+    # Auth
     path("api/v1/auth/", include("apps.users.urls")),
+    # JWT
     path("api/v1/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/v1/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/v1/token/verify/", TokenVerifyView.as_view(), name="token_verify"),
-    # Books
+    # ✅ Content API (универсальный)
+    path("api/v1/content/", include("apps.content.urls")),
+    # Books (старый API — можно оставить для совместимости)
     path("api/v1/books/", include("apps.books.urls")),
-    # API Docs
+    # Interactions
     path("api/v1/interactions/", include("apps.interactions.urls")),
+    # API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
@@ -30,3 +34,4 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "django_filters",
     "rest_framework_simplejwt",
     "corsheaders",
+    "apps.content.apps.ContentConfig",
     "drf_spectacular",
     "apps.interactions.apps.InteractionsConfig",
     "apps.books.apps.BooksConfig",

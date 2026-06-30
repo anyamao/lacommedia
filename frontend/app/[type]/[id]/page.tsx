@@ -1,23 +1,57 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
-import { useBook } from "@/hooks/useBook";
-import { ActionButtons } from "@/components/interactions/ActionButtons";
+import { useParams, usePathname } from "next/navigation";
+import { useContentItem } from "@/hooks/useContent";
+import Link from "next/link";
+import { useToast } from "@/context/ToastContext";
 import { CommentSection } from "@/components/interactions/CommentSection";
 import { ReviewSection } from "@/components/books/ReviewSection";
 import { QuizSection } from "@/components/books/QuizSection";
-import Link from "next/link";
-import { useToast } from "@/context/ToastContext";
+import { ActionButtons } from "@/components/interactions/ActionButtons";
 
-export default function BookDetailPage() {
+// ✅ Определяем тип из пути
+const getContentTypeFromPath = (pathname: string): string => {
+  if (pathname.startsWith("/books")) return "book";
+  if (pathname.startsWith("/movies")) return "movie";
+  if (pathname.startsWith("/paintings")) return "painting";
+  if (pathname.startsWith("/music")) return "music";
+  return "book";
+};
+
+const typeEmojis: Record<string, string> = {
+  book: "📚",
+  movie: "🎬",
+  painting: "🖼️",
+  music: "🎵",
+};
+
+const typeLabels: Record<string, string> = {
+  book: "Книга",
+  movie: "Фильм",
+  painting: "Картина",
+  music: "Музыка",
+};
+
+const typePlural: Record<string, string> = {
+  book: "книг",
+  movie: "фильмов",
+  painting: "картин",
+  music: "музыки",
+};
+
+export default function ContentDetailPage() {
   const params = useParams();
+  const pathname = usePathname();
   const id = parseInt(params.id as string);
-  const { book, isLoading, isError } = useBook(id);
+  const { content, isLoading, isError } = useContentItem(id);
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<"comments" | "reviews" | "quiz">(
     "comments",
   );
+
+  // ✅ Определяем тип из пути
+  const type = getContentTypeFromPath(pathname);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -25,7 +59,6 @@ export default function BookDetailPage() {
       await navigator.clipboard.writeText(url);
       showToast("🔗 Ссылка скопирована!", "success");
     } catch {
-      // Fallback
       const input = document.createElement("input");
       input.value = url;
       document.body.appendChild(input);
@@ -39,18 +72,18 @@ export default function BookDetailPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl text-gray-600">Загрузка книги...</div>
+        <div className="text-xl text-gray-600">Загрузка...</div>
       </div>
     );
   }
 
-  if (isError || !book) {
+  if (isError || !content) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-xl text-red-600">Книга не найдена</p>
+          <p className="text-xl text-red-600">Не найдено</p>
           <Link
-            href="/books"
+            href={`/${type === "book" ? "books" : type === "movie" ? "movies" : type === "painting" ? "paintings" : "music"}`}
             className="text-blue-600 hover:underline mt-2 inline-block"
           >
             ← Вернуться к списку
@@ -60,9 +93,7 @@ export default function BookDetailPage() {
     );
   }
 
-  const coverUrl =
-    book.cover_url || (book.cover ? `https://lacomedia.ru${book.cover}` : null);
-
+  const coverUrl = content.cover_url;
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString("ru-RU", {
       day: "numeric",
@@ -73,18 +104,32 @@ export default function BookDetailPage() {
     });
   };
 
+  const author =
+    content.extra_data?.author ||
+    content.extra_data?.composer ||
+    content.extra_data?.artist ||
+    "";
+
+  // ✅ Определяем путь для ссылки назад
+  const backPath =
+    type === "book"
+      ? "/books"
+      : type === "movie"
+        ? "/movies"
+        : type === "painting"
+          ? "/paintings"
+          : "/music";
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="flex justify-between items-center mb-4">
           <Link
-            href="/books"
+            href={backPath}
             className="text-blue-600 hover:underline inline-block"
           >
-            ← Все книги
+            ← Все {typePlural[type]}
           </Link>
-
-          {/* Кнопка поделиться */}
           <button
             onClick={handleShare}
             className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition text-sm"
@@ -100,74 +145,81 @@ export default function BookDetailPage() {
               {coverUrl ? (
                 <img
                   src={coverUrl}
-                  alt={book.name}
+                  alt={content.title}
                   className="w-full max-h-96 object-contain rounded-lg shadow-md"
                 />
               ) : (
                 <div className="w-full h-64 flex items-center justify-center text-6xl text-gray-300">
-                  📖
+                  {typeEmojis[content.content_type]}
                 </div>
               )}
             </div>
 
             <div className="md:w-2/3 p-6 md:p-8">
-              <h1 className="text-3xl font-bold text-gray-800">{book.name}</h1>
-              <p className="text-xl text-gray-600 mt-1">✍️ {book.author}</p>
+              <h1 className="text-3xl font-bold text-gray-800">
+                {content.title}
+              </h1>
+              {author && (
+                <p className="text-xl text-gray-600 mt-1">✍️ {author}</p>
+              )}
 
               <div className="flex flex-wrap gap-2 mt-3">
                 <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                  {book.genre}
+                  {content.genre}
                 </span>
-                <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">
-                  📅 {book.year}
-                </span>
-                {book.country && (
+                {content.year && (
+                  <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">
+                    📅 {content.year}
+                  </span>
+                )}
+                {content.country && (
                   <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
-                    🌍 {book.country}
+                    🌍 {content.country}
                   </span>
                 )}
                 <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
-                  ⭐ {book.rating}
+                  ⭐ {content.rating}
                 </span>
-                {book.hours_to_read > 0 && (
+                {content.hours_to_read > 0 && (
                   <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm">
-                    ⏱️ {book.hours_to_read} ч
+                    ⏱️ {content.hours_to_read} ч
                   </span>
                 )}
               </div>
 
               <div className="mt-4 flex items-center gap-4 text-sm text-gray-500">
-                <span>👁️ {book.views_count || 0} просмотров</span>
-                <span>📅 Добавлена: {formatDate(book.created_at)}</span>
-                <span>🔄 Обновлена: {formatDate(book.updated_at)}</span>
+                <span>👁️ {content.views_count || 0} просмотров</span>
+                <span>📅 Добавлено: {formatDate(content.created_at)}</span>
+                <span>🔄 Обновлено: {formatDate(content.updated_at)}</span>
               </div>
 
               <div className="mt-6">
-                <ActionButtons content_type="books.book" object_id={book.id} />
+                <ActionButtons
+                  content_type="content.content"
+                  object_id={content.id}
+                />
               </div>
             </div>
           </div>
 
           {/* Детали */}
           <div className="p-6 md:p-8 border-t space-y-6">
-            {/* Краткий пересказ */}
-            {book.brief_summary && (
+            {content.brief_summary && (
               <div>
                 <h2 className="text-xl font-semibold mb-3">
-                  📖 Краткий пересказ
+                  📖 Краткое содержание
                 </h2>
                 <p className="text-gray-700 leading-relaxed">
-                  {book.brief_summary}
+                  {content.brief_summary}
                 </p>
               </div>
             )}
 
-            {/* Главные герои */}
-            {book.characters && book.characters.length > 0 && (
+            {content.characters && content.characters.length > 0 && (
               <div>
-                <h2 className="text-xl font-semibold mb-3">🎭 Главные герои</h2>
+                <h2 className="text-xl font-semibold mb-3">🎭 Персонажи</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {book.characters.map((character) => (
+                  {content.characters.map((character: any) => (
                     <div
                       key={character.id}
                       className="bg-gray-50 rounded-lg p-4 flex items-start gap-3 hover:bg-gray-100 transition"
@@ -199,101 +251,104 @@ export default function BookDetailPage() {
               </div>
             )}
 
-            {/* Описание */}
             <div>
               <h2 className="text-xl font-semibold mb-3">📝 Описание</h2>
               <p className="text-gray-700 leading-relaxed">
-                {book.description}
+                {content.description}
               </p>
             </div>
 
-            {/* Рецензия */}
-            {book.review && (
+            {content.review && (
               <div>
                 <h2 className="text-xl font-semibold mb-3">✍️ Рецензия</h2>
-                <p className="text-gray-700 leading-relaxed">{book.review}</p>
+                <p className="text-gray-700 leading-relaxed">
+                  {content.review}
+                </p>
               </div>
             )}
 
-            {/* Интересные факты */}
-            {book.interesting_facts && book.interesting_facts.length > 0 && (
+            {content.interesting_facts &&
+              content.interesting_facts.length > 0 && (
+                <div>
+                  <h2 className="text-xl font-semibold mb-3">
+                    💡 Интересные факты
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {content.interesting_facts.map(
+                      (
+                        fact: { title: string; fact: string },
+                        index: number,
+                      ) => (
+                        <div
+                          key={index}
+                          className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 hover:shadow-md transition"
+                        >
+                          <h3 className="font-semibold text-blue-800 text-sm mb-1">
+                            {fact.title}
+                          </h3>
+                          <p className="text-gray-700 text-sm">{fact.fact}</p>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {content.ideas && (
               <div>
                 <h2 className="text-xl font-semibold mb-3">
-                  💡 Интересные факты
+                  💡 Идеи из произведения
                 </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {book.interesting_facts.map(
-                    (fact: { title: string; fact: string }, index: number) => (
-                      <div
-                        key={index}
-                        className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 hover:shadow-md transition"
-                      >
-                        <h3 className="font-semibold text-blue-800 text-sm mb-1">
-                          {fact.title}
-                        </h3>
-                        <p className="text-gray-700 text-sm">{fact.fact}</p>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Идеи из книги */}
-            {book.ideas && (
-              <div>
-                <h2 className="text-xl font-semibold mb-3">💡 Идеи из книги</h2>
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                   <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {book.ideas}
+                    {content.ideas}
                   </p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Вкладки: Комментарии | Отзывы | Тест */}
+          {/* Вкладки */}
           <div className="flex border-b bg-white px-6 pt-4">
             <button
               onClick={() => setActiveTab("comments")}
-              className={`px-4 py-2 text-sm font-medium transition ${
-                activeTab === "comments"
-                  ? "border-b-2 border-blue-600 text-blue-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
+              className={`px-4 py-2 text-sm font-medium transition ${activeTab === "comments" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
             >
               💬 Комментарии
             </button>
             <button
               onClick={() => setActiveTab("reviews")}
-              className={`px-4 py-2 text-sm font-medium transition ${
-                activeTab === "reviews"
-                  ? "border-b-2 border-blue-600 text-blue-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
+              className={`px-4 py-2 text-sm font-medium transition ${activeTab === "reviews" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
             >
-              ⭐ Отзывы ({book.reviews_count || 0})
-              {book.average_rating > 0 && ` • ${book.average_rating}/10`}
+              ⭐ Отзывы ({content.reviews_count || 0})
+              {content.rating > 0 && ` • ${content.rating}/10`}
             </button>
-            <button
-              onClick={() => setActiveTab("quiz")}
-              className={`px-4 py-2 text-sm font-medium transition ${
-                activeTab === "quiz"
-                  ? "border-b-2 border-blue-600 text-blue-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              🧠 Тест
-            </button>
+            {content.quiz_questions && content.quiz_questions.length > 0 && (
+              <button
+                onClick={() => setActiveTab("quiz")}
+                className={`px-4 py-2 text-sm font-medium transition ${activeTab === "quiz" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+              >
+                🧠 Тест
+              </button>
+            )}
           </div>
 
-          {/* Контент вкладок */}
           <div className="bg-white rounded-b-2xl shadow-xl p-6 md:p-8">
             {activeTab === "comments" && (
-              <CommentSection content_type="books.book" object_id={book.id} />
+              <CommentSection
+                content_type="content.content"
+                object_id={content.id}
+              />
             )}
-            {activeTab === "reviews" && <ReviewSection bookId={book.id} />}
-            {activeTab === "quiz" && <QuizSection bookId={book.id} />}
+            {activeTab === "reviews" && (
+              <ReviewSection contentId={content.id} />
+            )}
+            {activeTab === "quiz" && (
+              <QuizSection
+                contentId={content.id}
+                questions={content.quiz_questions || []}
+              />
+            )}
           </div>
         </div>
       </div>

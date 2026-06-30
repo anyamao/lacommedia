@@ -5,7 +5,7 @@ import { reviewService } from "@/services/reviewService";
 import { Review } from "@/lib/api/types";
 import { useToast } from "@/context/ToastContext";
 
-export function useReviews(bookId: number) {
+export function useReviews(contentId: number) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
@@ -13,14 +13,14 @@ export function useReviews(bookId: number) {
   const fetchReviews = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await reviewService.getReviews(bookId);
+      const data = await reviewService.getReviews(contentId);
       setReviews(data);
     } catch (error) {
       console.error("Error fetching reviews:", error);
     } finally {
       setLoading(false);
     }
-  }, [bookId]);
+  }, [contentId]);
 
   useEffect(() => {
     fetchReviews();
@@ -28,7 +28,7 @@ export function useReviews(bookId: number) {
 
   const createReview = async (rating: number, text: string) => {
     try {
-      const review = await reviewService.createReview(bookId, rating, text);
+      const review = await reviewService.createReview(contentId, rating, text);
       setReviews((prev) => [review, ...prev]);
       showToast("Отзыв добавлен!", "success");
       return review;

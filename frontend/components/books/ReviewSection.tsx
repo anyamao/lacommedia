@@ -2,6 +2,7 @@
 
 import { useToast } from "@/context/ToastContext";
 import { useState } from "react";
+import { reviewService } from "@/services/reviewService";
 import { useReviews } from "@/hooks/useReviews";
 import { Review } from "@/lib/api/types";
 import Link from "next/link";
@@ -9,10 +10,10 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { apiClient } from "@/lib/api/client"; // ✅ Импорт
 
 interface ReviewSectionProps {
-  bookId: number;
+  contentId: number;
 }
 
-export function ReviewSection({ bookId }: ReviewSectionProps) {
+export function ReviewSection({ contentId }: ReviewSectionProps) {
   const {
     reviews,
     loading,
@@ -20,7 +21,7 @@ export function ReviewSection({ bookId }: ReviewSectionProps) {
     updateReview,
     deleteReview,
     refetch,
-  } = useReviews(bookId);
+  } = useReviews(contentId);
   const [isWriting, setIsWriting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [rating, setRating] = useState(5);
@@ -33,17 +34,18 @@ export function ReviewSection({ bookId }: ReviewSectionProps) {
 
   const userReview = reviews.find((r) => r.can_edit);
   const hasReview = !!userReview;
-
   const handleReaction = async (
+    e: React.MouseEvent,
     reviewId: number,
     reactionType: "like" | "dislike",
   ) => {
+    e.preventDefault(); // ✅ Предотвращаем стандартное поведение
+    e.stopPropagation(); // ✅ Останавливаем всплытие
+
     try {
-      const response = await apiClient.post(
-        `/books/reviews/${reviewId}/react/`,
-        {
-          reaction_type: reactionType,
-        },
+      const response = await reviewService.toggleReviewReaction(
+        reviewId,
+        reactionType,
       );
 
       if (response.action === "added") {
@@ -67,7 +69,6 @@ export function ReviewSection({ bookId }: ReviewSectionProps) {
       showToast(errorMessage, "error");
     }
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim() || rating === 0) return;
