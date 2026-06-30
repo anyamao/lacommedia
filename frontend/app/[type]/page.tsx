@@ -6,7 +6,6 @@ import { useContentList } from "@/hooks/useContent";
 import Link from "next/link";
 import { useDebounce } from "@/hooks/useDebounce";
 
-// ✅ Определяем тип из пути
 const getContentTypeFromPath = (pathname: string): string => {
   if (pathname.startsWith("/books")) return "book";
   if (pathname.startsWith("/movies")) return "movie";
@@ -15,7 +14,6 @@ const getContentTypeFromPath = (pathname: string): string => {
   return "book";
 };
 
-// ✅ Определяем путь для ссылок
 const getTypePath = (pathname: string): string => {
   if (pathname.startsWith("/books")) return "books";
   if (pathname.startsWith("/movies")) return "movies";
@@ -41,14 +39,8 @@ const typeEmojis: Record<string, string> = {
 export default function ContentListPage() {
   const pathname = usePathname();
 
-  // ✅ Определяем тип из URL
   const contentType = getContentTypeFromPath(pathname);
   const typePath = getTypePath(pathname);
-
-  // ✅ Отладка
-  console.log("🔍 pathname:", pathname);
-  console.log("🔍 contentType:", contentType);
-  console.log("🔍 typePath:", typePath);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
@@ -74,7 +66,8 @@ export default function ContentListPage() {
     return f;
   }, [contentType, debouncedSearch, selectedGenres, selectedCountries, sortBy]);
 
-  const { content, isLoading, error } = useContentList(filters);
+  // ✅ Исправлено: isError вместо error
+  const { content, isLoading, isError } = useContentList(filters);
 
   const availableGenres = useMemo(() => {
     const genres = new Set<string>();
@@ -104,12 +97,12 @@ export default function ContentListPage() {
     }
   };
 
-  if (error) {
+  // ✅ Исправлено: isError вместо error
+  if (isError) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-xl text-red-600">Ошибка загрузки</p>
-          <p className="text-gray-500">{error.message}</p>
           <button
             onClick={() => window.location.reload()}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -184,7 +177,7 @@ export default function ContentListPage() {
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Жанры ({availableGenres.length})
+                  Жанры ({selectedGenres.length})
                 </label>
                 <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
                   {availableGenres.map((genre) => (
@@ -261,7 +254,7 @@ export default function ContentListPage() {
             {content.map((item: any) => (
               <Link
                 key={item.id}
-                href={`/${typePath}/${item.id}`} // ✅ Используем typePath
+                href={`/${typePath}/${item.id}`}
                 className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
               >
                 <div className="h-52 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center relative">

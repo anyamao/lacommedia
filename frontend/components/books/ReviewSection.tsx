@@ -2,15 +2,21 @@
 
 import { useToast } from "@/context/ToastContext";
 import { useState } from "react";
-import { reviewService } from "@/services/reviewService";
 import { useReviews } from "@/hooks/useReviews";
+import { reviewService } from "@/services/reviewService";
 import { Review } from "@/lib/api/types";
 import Link from "next/link";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { apiClient } from "@/lib/api/client"; // ✅ Импорт
 
 interface ReviewSectionProps {
   contentId: number;
+}
+
+// ✅ Расширенный тип для отзыва с реакциями
+interface ReviewWithReactions extends Review {
+  likes_count?: number;
+  dislikes_count?: number;
+  user_reaction?: "like" | "dislike" | null;
 }
 
 export function ReviewSection({ contentId }: ReviewSectionProps) {
@@ -34,14 +40,11 @@ export function ReviewSection({ contentId }: ReviewSectionProps) {
 
   const userReview = reviews.find((r) => r.can_edit);
   const hasReview = !!userReview;
+
   const handleReaction = async (
-    e: React.MouseEvent,
     reviewId: number,
     reactionType: "like" | "dislike",
   ) => {
-    e.preventDefault(); // ✅ Предотвращаем стандартное поведение
-    e.stopPropagation(); // ✅ Останавливаем всплытие
-
     try {
       const response = await reviewService.toggleReviewReaction(
         reviewId,
@@ -69,6 +72,7 @@ export function ReviewSection({ contentId }: ReviewSectionProps) {
       showToast(errorMessage, "error");
     }
   };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim() || rating === 0) return;
@@ -231,96 +235,107 @@ export function ReviewSection({ contentId }: ReviewSectionProps) {
         </div>
       ) : (
         <div className="space-y-3">
-          {reviews.map((review) => (
-            <div
-              key={review.id}
-              className={`border rounded-lg p-4 ${getRatingColor(review.rating)}`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <Link href={`/profile/${review.username}`}>
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-bold text-sm hover:opacity-80 transition">
-                      {review.username?.[0]?.toUpperCase() || "U"}
-                    </div>
-                  </Link>
-                  <div>
-                    <Link
-                      href={`/profile/${review.username}`}
-                      className="font-semibold hover:text-blue-600 hover:underline"
-                    >
-                      {review.username}
+          {reviews.map((review) => {
+            // ✅ Приводим к типу с реакциями
+            const reviewWithReactions = review as ReviewWithReactions;
+
+            return (
+              <div
+                key={review.id}
+                className={`border rounded-lg p-4 ${getRatingColor(review.rating)}`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <Link href={`/profile/${review.username}`}>
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-bold text-sm hover:opacity-80 transition">
+                        {review.username?.[0]?.toUpperCase() || "U"}
+                      </div>
                     </Link>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">
-                        {getRatingEmoji(review.rating)}
-                      </span>
-                      <span className="font-bold text-lg">
-                        {review.rating}/10
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {formatDate(review.created_at)}
-                      </span>
+                    <div>
+                      <Link
+                        href={`/profile/${review.username}`}
+                        className="font-semibold hover:text-blue-600 hover:underline"
+                      >
+                        {review.username}
+                      </Link>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">
+                          {getRatingEmoji(review.rating)}
+                        </span>
+                        <span className="font-bold text-lg">
+                          {review.rating}/10
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          {formatDate(review.created_at)}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  <div className="flex gap-2">
+                    {review.can_edit && (
+                      <>
+                        <button
+                          onClick={() => handleEdit(review)}
+                          className="text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(review.id)}
+                          className="text-sm text-red-600 hover:text-red-800"
+                        >
+                          🗑️
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  {review.can_edit && (
-                    <>
-                      <button
-                        onClick={() => handleEdit(review)}
-                        className="text-sm text-blue-600 hover:text-blue-800"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(review.id)}
-                        className="text-sm text-red-600 hover:text-red-800"
-                      >
-                        🗑️
-                      </button>
-                    </>
+
+                <p className="mt-2 text-gray-700">{review.text}</p>
+
+                <div className="mt-3 flex items-center gap-4">
+                  <button
+                    onClick={() => handleReaction(review.id, "like")}
+                    className={`flex items-center gap-1 text-sm transition ${
+                      reviewWithReactions.user_reaction === "like"
+                        ? "text-blue-600"
+                        : "text-gray-500 hover:text-blue-600"
+                    }`}
+                  >
+                    👍{" "}
+                    {reviewWithReactions.likes_count &&
+                      reviewWithReactions.likes_count > 0 &&
+                      reviewWithReactions.likes_count}
+                  </button>
+                  <button
+                    onClick={() => handleReaction(review.id, "dislike")}
+                    className={`flex items-center gap-1 text-sm transition ${
+                      reviewWithReactions.user_reaction === "dislike"
+                        ? "text-red-600"
+                        : "text-gray-500 hover:text-red-600"
+                    }`}
+                  >
+                    👎{" "}
+                    {reviewWithReactions.dislikes_count &&
+                      reviewWithReactions.dislikes_count > 0 &&
+                      reviewWithReactions.dislikes_count}
+                  </button>
+                  <span className="text-xs text-gray-400">
+                    {review.rating <= 4
+                      ? "🔴 Негативный"
+                      : review.rating <= 6
+                        ? "🟡 Нейтральный"
+                        : "🟢 Положительный"}
+                  </span>
+                  {review.created_at !== review.updated_at && (
+                    <span className="text-gray-400 text-xs">
+                      (отредактировано)
+                    </span>
                   )}
                 </div>
               </div>
-
-              <p className="mt-2 text-gray-700">{review.text}</p>
-
-              <div className="mt-3 flex items-center gap-4">
-                <button
-                  onClick={() => handleReaction(review.id, "like")}
-                  className={`flex items-center gap-1 text-sm transition ${
-                    review.user_reaction === "like"
-                      ? "text-blue-600"
-                      : "text-gray-500 hover:text-blue-600"
-                  }`}
-                >
-                  👍 {review.likes_count > 0 && review.likes_count}
-                </button>
-                <button
-                  onClick={() => handleReaction(review.id, "dislike")}
-                  className={`flex items-center gap-1 text-sm transition ${
-                    review.user_reaction === "dislike"
-                      ? "text-red-600"
-                      : "text-gray-500 hover:text-red-600"
-                  }`}
-                >
-                  👎 {review.dislikes_count > 0 && review.dislikes_count}
-                </button>
-                <span className="text-xs text-gray-400">
-                  {review.rating <= 4
-                    ? "🔴 Негативный"
-                    : review.rating <= 6
-                      ? "🟡 Нейтральный"
-                      : "🟢 Положительный"}
-                </span>
-                {review.created_at !== review.updated_at && (
-                  <span className="text-gray-400 text-xs">
-                    (отредактировано)
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

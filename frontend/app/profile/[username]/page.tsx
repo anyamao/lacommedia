@@ -1,10 +1,11 @@
 "use client";
-import { useToast } from "@/context/ToastContext";
+
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import { apiClient } from "@/lib/api/client";
 import Link from "next/link";
 import { useState } from "react";
+import { useToast } from "@/context/ToastContext";
 
 interface UserProfile {
   id: number;
@@ -38,6 +39,15 @@ interface Book {
   rating: number;
 }
 
+interface CurrentUser {
+  id: number;
+  username: string;
+  email: string;
+}
+
+// ✅ Типизированный fetcher для SWR
+const fetcher = <T,>(url: string): Promise<T> => apiClient.get<T>(url);
+
 export default function PublicProfilePage() {
   const params = useParams();
   const router = useRouter();
@@ -48,83 +58,81 @@ export default function PublicProfilePage() {
   const { showToast } = useToast();
 
   // ✅ Получаем текущего пользователя
-  const { data: currentUser } = useSWR("/auth/profile/", () =>
-    apiClient.get("/auth/profile/").catch(() => null),
+  const { data: currentUser } = useSWR<CurrentUser>(
+    "/auth/profile/",
+    fetcher<CurrentUser>,
   );
 
-  // Загружаем профиль
+  // ✅ Загружаем профиль
   const {
     data: profile,
     mutate: mutateProfile,
     error,
   } = useSWR<UserProfile>(
     username ? `/auth/profile/${username}/` : null,
-    () => apiClient.get(`/auth/profile/${username}/`),
+    fetcher<UserProfile>,
     {
       revalidateOnFocus: true,
       errorRetryCount: 2,
     },
   );
 
-  // Загружаем прочитанные книги
+  // ✅ Загружаем прочитанные книги
   const { data: books } = useSWR<Book[]>(
     activeTab === "books" && username
       ? `/auth/profile/${username}/books/`
       : null,
-    () => apiClient.get(`/auth/profile/${username}/books/`),
+    fetcher<Book[]>,
   );
 
-  // Загружаем подписчиков
+  // ✅ Загружаем подписчиков
   const { data: followers } = useSWR<UserProfile[]>(
     activeTab === "followers" && username
       ? `/auth/profile/${username}/followers/`
       : null,
-    () => apiClient.get(`/auth/profile/${username}/followers/`),
+    fetcher<UserProfile[]>,
   );
 
-  // Загружаем подписки
+  // ✅ Загружаем подписки
   const { data: following } = useSWR<UserProfile[]>(
     activeTab === "following" && username
       ? `/auth/profile/${username}/following/`
       : null,
-    () => apiClient.get(`/auth/profile/${username}/following/`),
+    fetcher<UserProfile[]>,
   );
 
-  // Загружаем друзей
+  // ✅ Загружаем друзей
   const { data: friends } = useSWR<UserProfile[]>(
     activeTab === "friends" && username
       ? `/auth/profile/${username}/friends/`
       : null,
-    () => apiClient.get(`/auth/profile/${username}/friends/`),
+    fetcher<UserProfile[]>,
   );
 
-  // ✅ Подписаться / Отписаться
   const handleFollow = async () => {
     try {
       await apiClient.post("/auth/follow/toggle/", { username });
-      await mutateProfile(); // ✅ Обновляем данные
+      await mutateProfile();
       showToast(`Вы подписались на @${username}`, "success");
     } catch (error: any) {
       showToast(error.response?.data?.error || "Ошибка при подписке", "error");
     }
   };
 
-  // ✅ Добавить в друзья
   const handleAddFriend = async () => {
     try {
       await apiClient.post("/auth/friend/add/", { username });
-      await mutateProfile(); // ✅ Обновляем данные
+      await mutateProfile();
       showToast(`Вы добавили @${username} в друзья! 🎉`, "success");
     } catch (error: any) {
       showToast(error.response?.data?.error || "Ошибка", "error");
     }
   };
 
-  // ✅ Удалить из друзей
   const handleUnfriend = async () => {
     try {
       await apiClient.post("/auth/friend/remove/", { username });
-      await mutateProfile(); // ✅ Обновляем данные
+      await mutateProfile();
       showToast(`Вы удалили @${username} из друзей`, "info");
     } catch (error: any) {
       showToast(
@@ -134,10 +142,10 @@ export default function PublicProfilePage() {
     }
   };
 
-  // ✅ Проверяем, свой ли это профиль
+  // ✅ Проверяем, свой ли это профиль (с проверкой на существование)
   const isOwnProfile = currentUser?.username === username;
 
-  // ✅ Если ошибка 404 — пользователь не найден
+  // Если ошибка 404 — пользователь не найден
   if (error?.response?.status === 404) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -176,7 +184,7 @@ export default function PublicProfilePage() {
     });
   };
 
-  // ✅ Рендерим кнопку действия в зависимости от статуса
+  // Рендерим кнопку действия
   const renderActionButton = () => {
     if (isOwnProfile) {
       return (
@@ -191,7 +199,6 @@ export default function PublicProfilePage() {
 
     const rel = profile.relationship;
 
-    // ✅ Если друзья — показываем кнопку "Удалить из друзей"
     if (rel.is_friend) {
       return (
         <div className="flex gap-2">
@@ -208,7 +215,6 @@ export default function PublicProfilePage() {
       );
     }
 
-    // ✅ Если человек подписан на вас — "Добавить в друзья"
     if (rel.can_friend || rel.is_follower) {
       return (
         <button
@@ -220,7 +226,6 @@ export default function PublicProfilePage() {
       );
     }
 
-    // ✅ Если вы подписаны — "Отписаться"
     if (rel.is_following) {
       return (
         <button
@@ -232,7 +237,6 @@ export default function PublicProfilePage() {
       );
     }
 
-    // ✅ Иначе — "Подписаться"
     return (
       <button
         onClick={handleFollow}
@@ -302,7 +306,6 @@ export default function PublicProfilePage() {
                   </div>
                 </div>
 
-                {/* ✅ Кнопка с новой логикой */}
                 {renderActionButton()}
               </div>
             </div>

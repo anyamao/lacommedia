@@ -5,14 +5,19 @@ import { Book } from "@/lib/api/types";
 
 interface BookCardProps {
   book: Book;
+  onClick?: (book: Book) => void; // ✅ Добавляем проп
 }
 
-export default function BookCard({ book }: BookCardProps) {
+export default function BookCard({ book, onClick }: BookCardProps) {
   const router = useRouter();
   const coverUrl = book.cover ? `https://lacomedia.ru${book.cover}` : null;
 
   const handleClick = () => {
-    router.push(`/books/${book.id}`);
+    if (onClick) {
+      onClick(book);
+    } else {
+      router.push(`/books/${book.id}`);
+    }
   };
 
   return (
