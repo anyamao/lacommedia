@@ -150,7 +150,18 @@ export interface Interaction {
   dislikes_count?: number;
   user_reaction?: "comment_like" | "comment_dislike" | null;
 }
-
+export interface FavoriteItem {
+  id: number;
+  content_type: ContentType;
+  content_type_display: string;
+  title: string;
+  cover: string | null;
+  cover_url: string | null;
+  rating: number;
+  genre: string;
+  year: number | null;
+  author?: string;
+}
 export interface InteractionCounts {
   likes: number;
   dislikes: number;

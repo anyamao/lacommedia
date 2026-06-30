@@ -121,6 +121,41 @@ class InteractionViewSet(viewsets.GenericViewSet):
         )
 
     @action(detail=False, methods=["post"])
+    def toggle_comment_reaction(self, request):
+        """Лайк/дизлайк комментария"""
+        if not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        comment_id = request.data.get("comment_id")
+        reaction_type = request.data.get("reaction_type")
+
+        if not comment_id or not reaction_type:
+            return Response(
+                {"error": "comment_id and reaction_type required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if reaction_type not in ["comment_like", "comment_dislike"]:
+            return Response(
+                {"error": "reaction_type must be comment_like or comment_dislike"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = Interaction.toggle_comment_reaction(
+            request.user, comment_id, reaction_type
+        )
+
+        if result.get("error"):
+            return Response(
+                {"error": result["error"]}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response(result)
+
+    @action(detail=False, methods=["post"])
     def add_comment(self, request):
         """Добавить комментарий к объекту"""
         if not request.user.is_authenticated:

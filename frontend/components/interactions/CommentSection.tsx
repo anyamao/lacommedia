@@ -9,6 +9,8 @@ interface CommentSectionProps {
   object_id: number;
 }
 
+const COMMENTS_PER_PAGE = 8;
+
 export function CommentSection({
   content_type,
   object_id,
@@ -19,6 +21,7 @@ export function CommentSection({
   );
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,12 +39,28 @@ export function CommentSection({
     }
   };
 
+  const visibleComments = showAll
+    ? comments
+    : comments.slice(0, COMMENTS_PER_PAGE);
+  const hasMoreComments = comments.length > COMMENTS_PER_PAGE;
+
   return (
     <div className="mt-8 border-t pt-6">
-      <h3 className="text-xl font-semibold mb-4">
-        💬 Комментарии ({comments.length})
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-semibold">
+          💬 Комментарии ({comments.length})
+        </h3>
+        {hasMoreComments && (
+          <button
+            onClick={() => setShowAll(!showAll)}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            {showAll ? "🔼 Скрыть" : `🔽 Показать все (${comments.length})`}
+          </button>
+        )}
+      </div>
 
+      {/* Форма добавления */}
       <form onSubmit={handleSubmit} className="mb-6">
         <textarea
           value={text}
@@ -60,21 +79,41 @@ export function CommentSection({
         </button>
       </form>
 
+      {/* Список комментариев */}
       <div className="space-y-4">
         {comments.length === 0 ? (
           <p className="text-gray-500 text-center py-4">
             Пока нет комментариев. Будьте первым!
           </p>
         ) : (
-          comments.map((comment) => (
-            <CommentItem
-              key={comment.id}
-              comment={comment}
-              content_type={content_type}
-              object_id={object_id}
-              onLikeChange={refetch}
-            />
-          ))
+          <>
+            {visibleComments.map((comment) => (
+              <CommentItem
+                key={comment.id}
+                comment={comment}
+                content_type={content_type}
+                object_id={object_id}
+                onLikeChange={refetch}
+              />
+            ))}
+            {hasMoreComments && !showAll && (
+              <button
+                onClick={() => setShowAll(true)}
+                className="w-full text-center text-sm text-blue-600 hover:underline py-2 border-t border-gray-100"
+              >
+                🔽 Показать еще {comments.length - COMMENTS_PER_PAGE}{" "}
+                комментариев
+              </button>
+            )}
+            {showAll && hasMoreComments && (
+              <button
+                onClick={() => setShowAll(false)}
+                className="w-full text-center text-sm text-gray-500 hover:underline py-2 border-t border-gray-100"
+              >
+                🔼 Свернуть
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

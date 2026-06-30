@@ -91,6 +91,59 @@ class ContentViewSet(viewsets.ModelViewSet):
             CharacterSerializer(character).data, status=status.HTTP_201_CREATED
         )
 
+    @action(detail=True, methods=["get"])
+    def similar(self, request, pk=None):
+        """Получить похожий контент (по автору/жанру)"""
+        content = self.get_object()
+
+        similar_by_author = []
+        similar_by_genre = []
+
+        # 1. По тому же автору/создателю
+        author = (
+            content.extra_data.get("author")
+            or content.extra_data.get("composer")
+            or content.extra_data.get("artist")
+        )
+        if author:
+            # Ищем контент с тем же автором
+            # Проверяем все поля extra_data для поиска
+            similar_by_author = Content.objects.filter(
+                is_active=True, content_type=content.content_type
+            ).exclude(id=content.id)
+
+            # Фильтруем по автору
+            filtered = []
+            for item in similar_by_author:
+                item_author = (
+                    item.extra_data.get("author")
+                    or item.extra_data.get("composer")
+                    or item.extra_data.get("artist")
+                )
+                if item_author and item_author.lower() == author.lower():
+                    filtered.append(item)
+            similar_by_author = filtered[:6]
+
+        # 2. По тому же жанру
+        similar_by_genre = (
+            Content.objects.filter(
+                is_active=True, genre=content.genre, content_type=content.content_type
+            )
+            .exclude(id=content.id)
+            .order_by("-created_at")[:6]
+        )
+
+        return Response(
+            {
+                "by_author": ContentListSerializer(
+                    similar_by_author, many=True, context={"request": request}
+                ).data,
+                "by_genre": ContentListSerializer(
+                    similar_by_genre, many=True, context={"request": request}
+                ).data,
+            }
+        )
+
 
 class ReviewListView(generics.ListAPIView):
     serializer_class = ReviewSerializer
@@ -216,3 +269,44 @@ class QuizQuestionsView(generics.ListAPIView):
     def get_queryset(self):
         content_id = self.kwargs.get("content_id")
         return QuizQuestion.objects.filter(content_id=content_id)
+
+
+@action(detail=True, methods=["get"])
+def similar(self, request, pk=None):
+    """Получить похожий контент (по автору/жанру)"""
+    content = self.get_object()
+
+    # 1. По тому же автору/создателю
+    author = (
+        content.extra_data.get("author")
+        or content.extra_data.get("composer")
+        or content.extra_data.get("artist")
+    )
+    similar_by_author = []
+    if author:
+        similar_by_author = Content.objects.filter(
+            is_active=True,
+            extra_data__has_key="author"
+            if content.extra_data.get("author")
+            else "composer"
+            if content.extra_data.get("composer")
+            else "artist",
+        ).exclude(id=content.id)
+        # TODO: Фильтр по автору через JSONField
+        similar_by_author = list(similar_by_author[:6])
+
+    # 2. По тому же жанру
+    similar_by_genre = (
+        Content.objects.filter(
+            is_active=True, genre=content.genre, content_type=content.content_type
+        )
+        .exclude(id=content.id)
+        .order_by("-created_at")[:6]
+    )
+
+    return Response(
+        {
+            "by_author": ContentListSerializer(similar_by_author, many=True).data,
+            "by_genre": ContentListSerializer(similar_by_genre, many=True).data,
+        }
+    )

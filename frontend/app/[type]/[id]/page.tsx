@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, usePathname } from "next/navigation";
 import { useContentItem } from "@/hooks/useContent";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import { CommentSection } from "@/components/interactions/CommentSection";
 import { ReviewSection } from "@/components/books/ReviewSection";
 import { QuizSection } from "@/components/books/QuizSection";
 import { ActionButtons } from "@/components/interactions/ActionButtons";
+import { apiClient } from "@/lib/api/client";
 
 // ✅ Определяем тип из пути
 const getContentTypeFromPath = (pathname: string): string => {
@@ -17,6 +18,15 @@ const getContentTypeFromPath = (pathname: string): string => {
   if (pathname.startsWith("/paintings")) return "painting";
   if (pathname.startsWith("/music")) return "music";
   return "book";
+};
+
+// ✅ Определяем путь для ссылок
+const getTypePath = (pathname: string): string => {
+  if (pathname.startsWith("/books")) return "books";
+  if (pathname.startsWith("/movies")) return "movies";
+  if (pathname.startsWith("/paintings")) return "paintings";
+  if (pathname.startsWith("/music")) return "music";
+  return "books";
 };
 
 const typeEmojis: Record<string, string> = {
@@ -49,9 +59,26 @@ export default function ContentDetailPage() {
   const [activeTab, setActiveTab] = useState<"comments" | "reviews" | "quiz">(
     "comments",
   );
+  const [similarContent, setSimilarContent] = useState<{
+    by_author: any[];
+    by_genre: any[];
+  }>({
+    by_author: [],
+    by_genre: [],
+  });
 
   // ✅ Определяем тип из пути
-  const type = getContentTypeFromPath(pathname);
+  const contentType = getContentTypeFromPath(pathname);
+  const typePath = getTypePath(pathname);
+
+  useEffect(() => {
+    if (content?.id) {
+      apiClient
+        .get(`/content/${content.id}/similar/`)
+        .then((data: any) => setSimilarContent(data))
+        .catch(console.error);
+    }
+  }, [content?.id]);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -83,7 +110,7 @@ export default function ContentDetailPage() {
         <div className="text-center">
           <p className="text-xl text-red-600">Не найдено</p>
           <Link
-            href={`/${type === "book" ? "books" : type === "movie" ? "movies" : type === "painting" ? "paintings" : "music"}`}
+            href={`/${typePath}`}
             className="text-blue-600 hover:underline mt-2 inline-block"
           >
             ← Вернуться к списку
@@ -110,25 +137,15 @@ export default function ContentDetailPage() {
     content.extra_data?.artist ||
     "";
 
-  // ✅ Определяем путь для ссылки назад
-  const backPath =
-    type === "book"
-      ? "/books"
-      : type === "movie"
-        ? "/movies"
-        : type === "painting"
-          ? "/paintings"
-          : "/music";
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="flex justify-between items-center mb-4">
           <Link
-            href={backPath}
+            href={`/${typePath}`}
             className="text-blue-600 hover:underline inline-block"
           >
-            ← Все {typePlural[type]}
+            ← Все {typePlural[contentType]}
           </Link>
           <button
             onClick={handleShare}
@@ -307,6 +324,86 @@ export default function ContentDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Похожее */}
+          {(similarContent.by_author.length > 0 ||
+            similarContent.by_genre.length > 0) && (
+            <div className="p-6 md:p-8 border-t">
+              {similarContent.by_author.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                    ✍️ От этого автора
+                  </h3>
+                  <div className="flex gap-4 overflow-x-auto pb-2">
+                    {similarContent.by_author.slice(0, 6).map((item: any) => (
+                      <Link
+                        key={item.id}
+                        href={`/${typePath}/${item.id}`}
+                        className="flex-shrink-0 w-36 bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition"
+                      >
+                        <div className="h-24 bg-gray-200 flex items-center justify-center">
+                          {item.cover_url ? (
+                            <img
+                              src={item.cover_url}
+                              alt={item.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-2xl text-gray-400">📖</span>
+                          )}
+                        </div>
+                        <div className="p-2">
+                          <p className="text-xs font-medium truncate">
+                            {item.title}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {item.genre}
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {similarContent.by_genre.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                    📚 {typeLabels[contentType]} в жанре {content.genre}
+                  </h3>
+                  <div className="flex gap-4 overflow-x-auto pb-2">
+                    {similarContent.by_genre.slice(0, 6).map((item: any) => (
+                      <Link
+                        key={item.id}
+                        href={`/${typePath}/${item.id}`}
+                        className="flex-shrink-0 w-36 bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition"
+                      >
+                        <div className="h-24 bg-gray-200 flex items-center justify-center">
+                          {item.cover_url ? (
+                            <img
+                              src={item.cover_url}
+                              alt={item.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-2xl text-gray-400">📖</span>
+                          )}
+                        </div>
+                        <div className="p-2">
+                          <p className="text-xs font-medium truncate">
+                            {item.title}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {item.genre}
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Вкладки */}
           <div className="flex border-b bg-white px-6 pt-4">
