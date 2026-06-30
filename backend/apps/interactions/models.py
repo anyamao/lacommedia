@@ -18,6 +18,8 @@ class Interaction(models.Model):
         FAVORITE = "favorite", "В избранное"
         READ = "read", "Прочитано"
         VIEW = "view", "Просмотр"
+        COMMENT_LIKE = "comment_like", "Лайк комментария"  # ✅ Добавляем
+        COMMENT_DISLIKE = "comment_dislike", "Дизлайк комментария"  # ✅ Добавляем
 
     # Generic relation
     content_type = models.ForeignKey(
@@ -55,7 +57,14 @@ class Interaction(models.Model):
         related_name="replies",
         verbose_name="Ответ на комментарий",
     )
-
+    comment = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="comment_likes",
+        verbose_name="Лайк на комментарий",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -66,6 +75,7 @@ class Interaction(models.Model):
             models.Index(fields=["user", "content_type", "object_id"]),
             models.Index(fields=["interaction_type"]),
             models.Index(fields=["created_at"]),
+            models.Index(fields=["comment"]),
         ]
         ordering = ["-created_at"]
         verbose_name = "Взаимодействие"
@@ -94,6 +104,93 @@ class Interaction(models.Model):
             return {"action": "removed", "interaction": None}
 
         return {"action": "added", "interaction": interaction}
+
+    @classmethod
+    def toggle_comment_reaction(cls, user, comment_id, reaction_type):
+        """
+        Лайк/дизлайк комментария
+        reaction_type: 'comment_like' или 'comment_dislike'
+        """
+        try:
+            comment = cls.objects.get(id=comment_id)
+        except cls.DoesNotExist:
+            return {"error": "Comment not found"}
+
+        # Проверяем, есть ли уже реакция от этого пользователя
+        existing = cls.objects.filter(
+            user=user,
+            comment=comment,
+            interaction_type__in=["comment_like", "comment_dislike"],
+        ).first()
+
+        if existing:
+            # Если это та же реакция — удаляем (отмена)
+            if existing.interaction_type == reaction_type:
+                existing.delete()
+                likes_count = cls.objects.filter(
+                    comment=comment, interaction_type="comment_like"
+                ).count()
+                dislikes_count = cls.objects.filter(
+                    comment=comment, interaction_type="comment_dislike"
+                ).count()
+                return {
+                    "action": "removed",
+                    "likes_count": likes_count,
+                    "dislikes_count": dislikes_count,
+                    "user_reaction": None,
+                }
+            else:
+                # Меняем реакцию (лайк -> дизлайк или наоборот)
+                existing.interaction_type = reaction_type
+                existing.save()
+                likes_count = cls.objects.filter(
+                    comment=comment, interaction_type="comment_like"
+                ).count()
+                dislikes_count = cls.objects.filter(
+                    comment=comment, interaction_type="comment_dislike"
+                ).count()
+                return {
+                    "action": "changed",
+                    "likes_count": likes_count,
+                    "dislikes_count": dislikes_count,
+                    "user_reaction": reaction_type,
+                }
+        else:
+            # Создаем новую реакцию
+            cls.objects.create(
+                user=user,
+                content_type=comment.content_type,
+                object_id=comment.object_id,
+                interaction_type=reaction_type,
+                text="",
+                comment=comment,
+            )
+            likes_count = cls.objects.filter(
+                comment=comment, interaction_type="comment_like"
+            ).count()
+            dislikes_count = cls.objects.filter(
+                comment=comment, interaction_type="comment_dislike"
+            ).count()
+            return {
+                "action": "added",
+                "likes_count": likes_count,
+                "dislikes_count": dislikes_count,
+                "user_reaction": reaction_type,
+            }
+
+    @classmethod
+    def get_comment_likes(cls, comment_id):
+        """Получить количество лайков комментария"""
+        return cls.objects.filter(
+            comment_id=comment_id, interaction_type="like"
+        ).count()
+
+    @classmethod
+    def get_user_comment_like(cls, user, comment_id):
+        """Проверить, лайкнул ли пользователь комментарий"""
+        return cls.objects.filter(
+            user=user, comment_id=comment_id, interaction_type="like"
+        ).exists()
 
     @classmethod
     def get_counts(cls, content_object):

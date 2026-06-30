@@ -49,7 +49,27 @@ export class InteractionService {
       `/interactions/comments/?content_type=${content_type}&object_id=${object_id}`,
     );
   }
-
+  async toggleCommentLike(
+    commentId: number,
+  ): Promise<{ action: string; likes_count: number }> {
+    return apiClient.post("/interactions/toggle_comment_like/", {
+      comment_id: commentId,
+    });
+  }
+  async toggleCommentReaction(
+    commentId: number,
+    reactionType: "comment_like" | "comment_dislike",
+  ): Promise<{
+    action: string;
+    likes_count: number;
+    dislikes_count: number;
+    user_reaction: string | null;
+  }> {
+    return apiClient.post("/interactions/toggle_comment_reaction/", {
+      comment_id: commentId,
+      reaction_type: reactionType,
+    });
+  }
   async getUserInteraction(
     content_type: string,
     object_id: number,

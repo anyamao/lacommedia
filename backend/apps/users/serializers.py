@@ -2,7 +2,13 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
-from .models import User
+from .models import User, Friendship
+from apps.books.models import Book
+from django.core.validators import RegexValidator
+
+username_validator = RegexValidator(
+    r"^[a-zA-Z0-9]+$", "Username может содержать только буквы и цифры (латиница)."
+)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -29,17 +35,78 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "is_active", "created_at", "updated_at"]
 
 
-class UserProfileUpdateSerializer(serializers.ModelSerializer):
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Сериализатор для профиля пользователя (публичный)"""
+
+    full_name = serializers.ReadOnlyField()
+    avatar_url = serializers.ReadOnlyField()
+    total_books_read = serializers.ReadOnlyField()
+    followers_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
+    friends_count = serializers.SerializerMethodField()
+    is_following = serializers.SerializerMethodField()
+    is_friend = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
+            "id",
+            "username",
             "first_name",
             "last_name",
-            "username",
-            "level",
+            "full_name",
             "avatar",
-            "dark_theme",
+            "avatar_url",
+            "level",
+            "total_books_read",
+            "created_at",
+            "followers_count",
+            "following_count",
+            "friends_count",
+            "is_following",
+            "is_friend",
         ]
+
+    def get_followers_count(self, obj):
+        # ✅ Только подписчики (НЕ друзья)
+        return Friendship.objects.filter(
+            following=obj, status=Friendship.Status.FOLLOWING
+        ).count()
+
+    def get_following_count(self, obj):
+        # ✅ Только подписки (НЕ друзья)
+        return Friendship.objects.filter(
+            follower=obj, status=Friendship.Status.FOLLOWING
+        ).count()
+
+    def get_friends_count(self, obj):
+        return Friendship.objects.filter(
+            follower=obj, status=Friendship.Status.FRIENDS
+        ).count()
+
+    def get_is_following(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        return Friendship.objects.filter(
+            follower=request.user, following=obj, status=Friendship.Status.FOLLOWING
+        ).exists()
+
+    def get_is_friend(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        return Friendship.objects.filter(
+            follower=request.user, following=obj, status=Friendship.Status.FRIENDS
+        ).exists()
+
+
+class UserReadBooksSerializer(serializers.ModelSerializer):
+    """Сериализатор для прочитанных книг"""
+
+    class Meta:
+        model = Book
+        fields = ["id", "name", "author", "genre", "year", "cover", "rating"]
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -72,6 +139,13 @@ class RegisterSerializer(serializers.ModelSerializer):
             "last_name",
         ]
 
+    def validate_username(self, value):
+        if not value.isalnum():
+            raise serializers.ValidationError(
+                "Username может содержать только буквы и цифры (латиница)."
+            )
+        return value
+
     def validate(self, attrs):
         if attrs["password"] != attrs["password2"]:
             raise serializers.ValidationError({"password": "Пароли не совпадают"})
@@ -81,6 +155,21 @@ class RegisterSerializer(serializers.ModelSerializer):
         validated_data.pop("password2")
         user = User.objects.create_user(**validated_data)
         return user
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    """Для обновления профиля (PUT/PATCH)"""
+
+    class Meta:
+        model = User
+        fields = [
+            "first_name",
+            "last_name",
+            "username",
+            "level",
+            "avatar",
+            "dark_theme",
+        ]
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):

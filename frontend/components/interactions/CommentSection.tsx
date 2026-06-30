@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useInteractions } from "@/hooks/useInteractions";
-import { Interaction } from "@/lib/api/types";
+import { CommentItem } from "./CommentItem";
 
 interface CommentSectionProps {
   content_type: string;
@@ -13,7 +13,7 @@ export function CommentSection({
   content_type,
   object_id,
 }: CommentSectionProps) {
-  const { comments, addComment, loading } = useInteractions(
+  const { comments, addComment, loading, refetch } = useInteractions(
     content_type,
     object_id,
   );
@@ -28,21 +28,12 @@ export function CommentSection({
     try {
       await addComment(text);
       setText("");
+      refetch();
     } catch (error) {
       console.error("Error posting comment:", error);
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("ru-RU", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   return (
@@ -51,7 +42,6 @@ export function CommentSection({
         💬 Комментарии ({comments.length})
       </h3>
 
-      {/* Форма добавления */}
       <form onSubmit={handleSubmit} className="mb-6">
         <textarea
           value={text}
@@ -70,7 +60,6 @@ export function CommentSection({
         </button>
       </form>
 
-      {/* Список комментариев */}
       <div className="space-y-4">
         {comments.length === 0 ? (
           <p className="text-gray-500 text-center py-4">
@@ -78,22 +67,13 @@ export function CommentSection({
           </p>
         ) : (
           comments.map((comment) => (
-            <div key={comment.id} className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                  {comment.username?.[0]?.toUpperCase() || "U"}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">{comment.username}</span>
-                    <span className="text-sm text-gray-500">
-                      {formatDate(comment.created_at)}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-gray-700">{comment.text}</p>
-                </div>
-              </div>
-            </div>
+            <CommentItem
+              key={comment.id}
+              comment={comment}
+              content_type={content_type}
+              object_id={object_id}
+              onLikeChange={refetch}
+            />
           ))
         )}
       </div>

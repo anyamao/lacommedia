@@ -5,8 +5,8 @@ from apps.books.models import Book
 
 
 class InteractionSerializer(serializers.ModelSerializer):
-    user_email = serializers.SerializerMethodField()
-    username = serializers.SerializerMethodField()
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)
     avatar_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -25,14 +25,10 @@ class InteractionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["user", "created_at", "updated_at"]
 
-    def get_user_email(self, obj):
-        return obj.user.email
-
-    def get_username(self, obj):
-        return obj.user.username
-
     def get_avatar_url(self, obj):
-        return obj.user.avatar_url
+        if obj.user and obj.user.avatar:
+            return obj.user.avatar.url
+        return None
 
 
 class CommentCreateSerializer(serializers.Serializer):

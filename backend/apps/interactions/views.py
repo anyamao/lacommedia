@@ -161,41 +161,6 @@ class InteractionViewSet(viewsets.GenericViewSet):
         )
 
     @action(detail=False, methods=["get"])
-    def comments(self, request):
-        """Получить комментарии к объекту"""
-        content_type = request.query_params.get("content_type")
-        object_id = request.query_params.get("object_id")
-
-        if not content_type or not object_id:
-            return Response(
-                {"error": "content_type and object_id required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            ct = ContentType.objects.get(
-                app_label=content_type.split(".")[0], model=content_type.split(".")[1]
-            )
-        except ContentType.DoesNotExist:
-            return Response(
-                {"error": "Invalid content_type"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        comments = (
-            Interaction.objects.filter(
-                content_type=ct,
-                object_id=object_id,
-                interaction_type=Interaction.InteractionType.LIKE,
-                text__isnull=False,
-            )
-            .select_related("user")
-            .order_by("-created_at")
-        )
-
-        serializer = InteractionSerializer(comments, many=True)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=["get"])
     def user_interaction(self, request):
         """Получить все взаимодействия текущего пользователя с объектом"""
         if not request.user.is_authenticated:
@@ -228,6 +193,127 @@ class InteractionViewSet(viewsets.GenericViewSet):
             result[interaction.interaction_type] = True
 
         return Response(result)
+
+    @action(detail=False, methods=["post"])
+    def toggle_comment_reaction(self, request):
+        """Лайк/дизлайк комментария"""
+        if not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        comment_id = request.data.get("comment_id")
+        reaction_type = request.data.get(
+            "reaction_type"
+        )  # 'comment_like' или 'comment_dislike'
+
+        if not comment_id or not reaction_type:
+            return Response(
+                {"error": "comment_id and reaction_type required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if reaction_type not in ["comment_like", "comment_dislike"]:
+            return Response(
+                {"error": "reaction_type must be comment_like or comment_dislike"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = Interaction.toggle_comment_reaction(
+            request.user, comment_id, reaction_type
+        )
+
+        if result.get("error"):
+            return Response(
+                {"error": result["error"]}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response(result)
+
+    @action(detail=False, methods=["get"])
+    def comments(self, request):
+        """Получить комментарии к объекту с реакциями"""
+        content_type = request.query_params.get("content_type")
+        object_id = request.query_params.get("object_id")
+
+        if not content_type or not object_id:
+            return Response(
+                {"error": "content_type and object_id required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            ct = ContentType.objects.get(
+                app_label=content_type.split(".")[0], model=content_type.split(".")[1]
+            )
+        except ContentType.DoesNotExist:
+            return Response(
+                {"error": "Invalid content_type"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        comments = (
+            Interaction.objects.filter(
+                content_type=ct,
+                object_id=object_id,
+                interaction_type=Interaction.InteractionType.LIKE,
+                text__isnull=False,
+            )
+            .select_related("user")
+            .order_by("-created_at")
+        )
+
+        result = []
+        for comment in comments:
+            comment_data = InteractionSerializer(comment).data
+            comment_data["likes_count"] = Interaction.objects.filter(
+                comment=comment, interaction_type="comment_like"
+            ).count()
+            comment_data["dislikes_count"] = Interaction.objects.filter(
+                comment=comment, interaction_type="comment_dislike"
+            ).count()
+            comment_data["user_reaction"] = None
+            if request.user.is_authenticated:
+                user_reaction = Interaction.objects.filter(
+                    user=request.user,
+                    comment=comment,
+                    interaction_type__in=["comment_like", "comment_dislike"],
+                ).first()
+                if user_reaction:
+                    comment_data["user_reaction"] = user_reaction.interaction_type
+            result.append(comment_data)
+
+        return Response(result)
+
+    @action(detail=False, methods=["post"])
+    def toggle_comment_like(self, request):
+        """Лайк/дизлайк комментария"""
+        if not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        comment_id = request.data.get("comment_id")
+        if not comment_id:
+            return Response(
+                {"error": "comment_id required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        result = Interaction.toggle_comment_like(request.user, comment_id)
+
+        if result.get("error"):
+            return Response(
+                {"error": result["error"]}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Считаем лайки комментария
+        comment = Interaction.objects.get(id=comment_id)
+        likes_count = Interaction.objects.filter(
+            parent=comment, interaction_type="like"
+        ).count()
+
+        return Response({"action": result["action"], "likes_count": likes_count})
 
     @action(detail=False, methods=["post"])
     def view(self, request):

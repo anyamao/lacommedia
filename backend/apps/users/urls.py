@@ -7,6 +7,12 @@ from .views import (
     RefreshView,
     LogoutView,
     DeleteAccountView,
+    PublicProfileView,
+    UserReadBooksView,
+    FollowToggleView,
+    FollowersListView,
+    FollowingListView,
+    FriendsListView,
 )
 from rest_framework_simplejwt.views import TokenVerifyView
 
@@ -23,4 +29,21 @@ urlpatterns = [
     path("refresh/", RefreshView.as_view(), name="refresh"),
     path("verify/", TokenVerifyView.as_view(), name="verify"),
     path("logout/", LogoutView.as_view(), name="logout"),
+    path("profile/<str:username>/", PublicProfileView.as_view(), name="public_profile"),
+    path(
+        "profile/<str:username>/books/", UserReadBooksView.as_view(), name="user_books"
+    ),
+    path(
+        "profile/<str:username>/followers/",
+        FollowersListView.as_view(),
+        name="followers",
+    ),
+    path(
+        "profile/<str:username>/following/",
+        FollowingListView.as_view(),
+        name="following",
+    ),
+    path("profile/<str:username>/friends/", FriendsListView.as_view(), name="friends"),
+    # Подписки
+    path("follow/toggle/", FollowToggleView.as_view(), name="follow_toggle"),
 ]
