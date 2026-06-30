@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
-
+import { useToast } from "@/context/ToastContext";
 export default function RegisterPage() {
   const [form, setForm] = useState({
     email: "",
@@ -15,12 +15,26 @@ export default function RegisterPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const { register, loading, error } = useAuth();
-
+  const { showToast } = useToast();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await register(form);
-  };
 
+    // ✅ Проверка username на стороне клиента
+    if (!/^[a-zA-Z0-9]+$/.test(form.username)) {
+      showToast(
+        "Username может содержать только буквы и цифры (латиница)",
+        "error",
+      );
+      return;
+    }
+
+    const result = await register(form);
+    if (result.success) {
+      showToast("Регистрация успешна! Добро пожаловать!", "success");
+    } else if (result.error) {
+      showToast(result.error, "error");
+    }
+  };
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };

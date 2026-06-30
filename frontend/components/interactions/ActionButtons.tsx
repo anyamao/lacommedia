@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useInteractions } from "@/hooks/useInteractions";
+import { useToast } from "@/context/ToastContext";
 
 interface ActionButtonsProps {
   content_type: string;
@@ -18,15 +19,38 @@ export function ActionButtons({
     content_type,
     object_id,
   );
+  const { showToast } = useToast();
   const [localLoading, setLocalLoading] = useState<string | null>(null);
 
   const handleToggle = async (type: string) => {
     setLocalLoading(type);
     try {
-      await toggle(type);
+      const result = await toggle(type);
+      if (result?.action) {
+        const messages = {
+          like:
+            result.action === "added" ? "❤️ Лайк поставлен" : "👍 Лайк убран",
+          dislike:
+            result.action === "added"
+              ? "👎 Дизлайк поставлен"
+              : "👎 Дизлайк убран",
+          favorite:
+            result.action === "added"
+              ? "⭐ В избранное добавлено"
+              : "⭐ Из избранного убрано",
+          read:
+            result.action === "added"
+              ? "📖 Отмечено как прочитанное"
+              : "📖 Отметка прочитанного убрана",
+        };
+        showToast(
+          messages[type as keyof typeof messages] || "Действие выполнено",
+          "success",
+        );
+      }
       onInteractionChange?.();
     } catch (error) {
-      console.error("Error toggling:", error);
+      showToast("Ошибка при выполнении действия", "error");
     } finally {
       setLocalLoading(null);
     }
@@ -37,6 +61,7 @@ export function ActionButtons({
 
   return (
     <div className="flex flex-wrap gap-2">
+      {/* Лайк */}
       <button
         onClick={() => handleToggle("like")}
         disabled={isLoading("like")}
@@ -49,6 +74,7 @@ export function ActionButtons({
         👍 {isActive("like") ? "Лайк" : "Нравится"}
       </button>
 
+      {/* Дизлайк */}
       <button
         onClick={() => handleToggle("dislike")}
         disabled={isLoading("dislike")}
@@ -61,6 +87,7 @@ export function ActionButtons({
         👎 Дизлайк
       </button>
 
+      {/* Избранное */}
       <button
         onClick={() => handleToggle("favorite")}
         disabled={isLoading("favorite")}
@@ -73,6 +100,7 @@ export function ActionButtons({
         ❤️ {isActive("favorite") ? "В избранном" : "В избранное"}
       </button>
 
+      {/* Прочитано */}
       <button
         onClick={() => handleToggle("read")}
         disabled={isLoading("read")}

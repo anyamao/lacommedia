@@ -50,7 +50,17 @@ class InteractionViewSet(viewsets.GenericViewSet):
         model_class = ct.model_class()
         obj = get_object_or_404(model_class, id=object_id)
 
-        # Переключаем взаимодействие
+        # ✅ Если это лайк или дизлайк — удаляем противоположный
+        if interaction_type in ["like", "dislike"]:
+            opposite_type = "dislike" if interaction_type == "like" else "like"
+            Interaction.objects.filter(
+                user=request.user,
+                content_type=ct,
+                object_id=obj.id,
+                interaction_type=opposite_type,
+            ).delete()
+
+        # Переключаем текущий
         existing = Interaction.objects.filter(
             user=request.user,
             content_type=ct,
@@ -75,34 +85,24 @@ class InteractionViewSet(viewsets.GenericViewSet):
         # Считаем количество
         counts = {
             "likes": Interaction.objects.filter(
-                content_type=ct,
-                object_id=obj.id,
-                interaction_type=Interaction.InteractionType.LIKE,
+                content_type=ct, object_id=obj.id, interaction_type="like"
             ).count(),
             "dislikes": Interaction.objects.filter(
-                content_type=ct,
-                object_id=obj.id,
-                interaction_type=Interaction.InteractionType.DISLIKE,
+                content_type=ct, object_id=obj.id, interaction_type="dislike"
             ).count(),
             "favorites": Interaction.objects.filter(
-                content_type=ct,
-                object_id=obj.id,
-                interaction_type=Interaction.InteractionType.FAVORITE,
+                content_type=ct, object_id=obj.id, interaction_type="favorite"
             ).count(),
             "reads": Interaction.objects.filter(
-                content_type=ct,
-                object_id=obj.id,
-                interaction_type=Interaction.InteractionType.READ,
+                content_type=ct, object_id=obj.id, interaction_type="read"
             ).count(),
             "views": Interaction.objects.filter(
-                content_type=ct,
-                object_id=obj.id,
-                interaction_type=Interaction.InteractionType.VIEW,
+                content_type=ct, object_id=obj.id, interaction_type="view"
             ).count(),
             "comments": Interaction.objects.filter(
                 content_type=ct,
                 object_id=obj.id,
-                interaction_type=Interaction.InteractionType.LIKE,
+                interaction_type="like",
                 text__isnull=False,
             ).count(),
         }

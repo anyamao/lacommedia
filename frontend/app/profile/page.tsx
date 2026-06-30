@@ -1,5 +1,5 @@
 "use client";
-
+import { useToast } from "@/context/ToastContext";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -11,6 +11,7 @@ import { apiClient } from "@/lib/api/client";
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const { profile, isLoading, mutate } = useProfile();
   const { updateProfile, loading: updateLoading } = useUpdateProfile();
   const { changePassword, loading: passwordLoading } = useChangePassword();
@@ -54,6 +55,7 @@ export default function ProfilePage() {
     const result = await updateProfile(formData);
     if (result.success) {
       setEditMode(false);
+      showToast("Профиль успешно обновлен!", "success");
       mutate(); // Обновляем данные
     }
   };
@@ -65,11 +67,13 @@ export default function ProfilePage() {
 
     if (passwordData.new_password !== passwordData.new_password2) {
       setPasswordError("Пароли не совпадают");
+      showToast("Пароли не совпадают", "error");
       return;
     }
 
     if (passwordData.new_password.length < 12) {
       setPasswordError("Пароль должен быть минимум 12 символов");
+      showToast("Пароли не совпадают", "error");
       return;
     }
 
@@ -85,6 +89,7 @@ export default function ProfilePage() {
         new_password2: "",
       });
       setTimeout(() => setShowPasswordForm(false), 2000);
+      showToast("Пароль успешно изменен!", "success");
     } else if (result.error) {
       setPasswordError(result.error);
     }

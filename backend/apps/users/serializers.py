@@ -36,16 +36,13 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    """Сериализатор для профиля пользователя (публичный)"""
-
     full_name = serializers.ReadOnlyField()
     avatar_url = serializers.ReadOnlyField()
-    total_books_read = serializers.ReadOnlyField()
+    total_books_read = serializers.SerializerMethodField()
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
     friends_count = serializers.SerializerMethodField()
-    is_following = serializers.SerializerMethodField()
-    is_friend = serializers.SerializerMethodField()
+    relationship = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -63,18 +60,20 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "followers_count",
             "following_count",
             "friends_count",
-            "is_following",
-            "is_friend",
+            "relationship",
         ]
 
+    def get_total_books_read(self, obj):
+        return obj.total_books_read
+
     def get_followers_count(self, obj):
-        # ✅ Только подписчики (НЕ друзья)
+        # Только подписчики (НЕ друзья)
         return Friendship.objects.filter(
             following=obj, status=Friendship.Status.FOLLOWING
         ).count()
 
     def get_following_count(self, obj):
-        # ✅ Только подписки (НЕ друзья)
+        # Только подписки (НЕ друзья)
         return Friendship.objects.filter(
             follower=obj, status=Friendship.Status.FOLLOWING
         ).count()
@@ -84,21 +83,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
             follower=obj, status=Friendship.Status.FRIENDS
         ).count()
 
-    def get_is_following(self, obj):
+    def get_relationship(self, obj):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
-            return False
-        return Friendship.objects.filter(
-            follower=request.user, following=obj, status=Friendship.Status.FOLLOWING
-        ).exists()
+            return {
+                "is_following": False,
+                "is_follower": False,
+                "is_friend": False,
+                "can_friend": False,
+                "is_self": False,
+            }
 
-    def get_is_friend(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return False
-        return Friendship.objects.filter(
-            follower=request.user, following=obj, status=Friendship.Status.FRIENDS
-        ).exists()
+        return Friendship.get_relationship_status(request.user, obj)
 
 
 class UserReadBooksSerializer(serializers.ModelSerializer):

@@ -1,10 +1,10 @@
 "use client";
-
+import { useToast } from "@/context/ToastContext";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import { apiClient } from "@/lib/api/client";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface UserProfile {
   id: number;
@@ -18,8 +18,13 @@ interface UserProfile {
   followers_count: number;
   following_count: number;
   friends_count: number;
-  is_following: boolean;
-  is_friend: boolean;
+  relationship: {
+    is_following: boolean;
+    is_follower: boolean;
+    is_friend: boolean;
+    can_friend: boolean;
+    is_self: boolean;
+  };
   created_at: string;
 }
 
@@ -40,6 +45,7 @@ export default function PublicProfilePage() {
   const [activeTab, setActiveTab] = useState<
     "books" | "followers" | "following" | "friends"
   >("books");
+  const { showToast } = useToast();
 
   // ✅ Получаем текущего пользователя
   const { data: currentUser } = useSWR("/auth/profile/", () =>
@@ -92,12 +98,39 @@ export default function PublicProfilePage() {
     () => apiClient.get(`/auth/profile/${username}/friends/`),
   );
 
+  // ✅ Подписаться / Отписаться
   const handleFollow = async () => {
     try {
       await apiClient.post("/auth/follow/toggle/", { username });
-      mutateProfile();
-    } catch (error) {
-      console.error("Error toggling follow:", error);
+      await mutateProfile(); // ✅ Обновляем данные
+      showToast(`Вы подписались на @${username}`, "success");
+    } catch (error: any) {
+      showToast(error.response?.data?.error || "Ошибка при подписке", "error");
+    }
+  };
+
+  // ✅ Добавить в друзья
+  const handleAddFriend = async () => {
+    try {
+      await apiClient.post("/auth/friend/add/", { username });
+      await mutateProfile(); // ✅ Обновляем данные
+      showToast(`Вы добавили @${username} в друзья! 🎉`, "success");
+    } catch (error: any) {
+      showToast(error.response?.data?.error || "Ошибка", "error");
+    }
+  };
+
+  // ✅ Удалить из друзей
+  const handleUnfriend = async () => {
+    try {
+      await apiClient.post("/auth/friend/remove/", { username });
+      await mutateProfile(); // ✅ Обновляем данные
+      showToast(`Вы удалили @${username} из друзей`, "info");
+    } catch (error: any) {
+      showToast(
+        error.response?.data?.error || "Ошибка при удалении из друзей",
+        "error",
+      );
     }
   };
 
@@ -141,6 +174,73 @@ export default function PublicProfilePage() {
       month: "long",
       year: "numeric",
     });
+  };
+
+  // ✅ Рендерим кнопку действия в зависимости от статуса
+  const renderActionButton = () => {
+    if (isOwnProfile) {
+      return (
+        <Link
+          href="/profile"
+          className="bg-white text-blue-600 px-4 py-1 rounded-full text-sm font-medium hover:bg-blue-50 transition"
+        >
+          ✏️ Редактировать
+        </Link>
+      );
+    }
+
+    const rel = profile.relationship;
+
+    // ✅ Если друзья — показываем кнопку "Удалить из друзей"
+    if (rel.is_friend) {
+      return (
+        <div className="flex gap-2">
+          <span className="bg-green-500 text-white px-4 py-1 rounded-full text-sm">
+            🤝 Друзья
+          </span>
+          <button
+            onClick={handleUnfriend}
+            className="bg-red-500 text-white px-3 py-1 rounded-full text-sm hover:bg-red-600 transition"
+          >
+            ✕ Удалить
+          </button>
+        </div>
+      );
+    }
+
+    // ✅ Если человек подписан на вас — "Добавить в друзья"
+    if (rel.can_friend || rel.is_follower) {
+      return (
+        <button
+          onClick={handleAddFriend}
+          className="bg-green-500 text-white px-4 py-1 rounded-full text-sm font-medium hover:bg-green-600 transition"
+        >
+          🤝 Добавить в друзья
+        </button>
+      );
+    }
+
+    // ✅ Если вы подписаны — "Отписаться"
+    if (rel.is_following) {
+      return (
+        <button
+          onClick={handleFollow}
+          className="bg-white/20 text-white px-4 py-1 rounded-full text-sm font-medium hover:bg-white/30 transition"
+        >
+          Отписаться
+        </button>
+      );
+    }
+
+    // ✅ Иначе — "Подписаться"
+    return (
+      <button
+        onClick={handleFollow}
+        className="bg-white text-blue-600 px-4 py-1 rounded-full text-sm font-medium hover:bg-blue-50 transition"
+      >
+        Подписаться
+      </button>
+    );
   };
 
   return (
@@ -202,30 +302,8 @@ export default function PublicProfilePage() {
                   </div>
                 </div>
 
-                {/* ✅ Кнопка в зависимости от того, свой это профиль или чужой */}
-                {isOwnProfile ? (
-                  <Link
-                    href="/profile"
-                    className="bg-white text-blue-600 px-4 py-1 rounded-full text-sm font-medium hover:bg-blue-50 transition"
-                  >
-                    ✏️ Редактировать
-                  </Link>
-                ) : profile.is_friend ? (
-                  <span className="bg-green-500 text-white px-4 py-1 rounded-full text-sm">
-                    🤝 Друзья
-                  </span>
-                ) : (
-                  <button
-                    onClick={handleFollow}
-                    className={`px-4 py-1 rounded-full text-sm font-medium transition ${
-                      profile.is_following
-                        ? "bg-white/20 text-white hover:bg-white/30"
-                        : "bg-white text-blue-600 hover:bg-blue-50"
-                    }`}
-                  >
-                    {profile.is_following ? "Отписаться" : "Подписаться"}
-                  </button>
-                )}
+                {/* ✅ Кнопка с новой логикой */}
+                {renderActionButton()}
               </div>
             </div>
           </div>

@@ -222,7 +222,6 @@ class FollowToggleView(views.APIView):
                 {"error": "username required"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        # ✅ Правильный поиск пользователя
         try:
             target_user = User.objects.get(username=username, is_active=True)
         except User.DoesNotExist:
@@ -238,12 +237,100 @@ class FollowToggleView(views.APIView):
 
         result = Friendship.toggle_follow(request.user, target_user)
 
+        if result.get("error"):
+            return Response(
+                {"error": result["error"]}, status=status.HTTP_400_BAD_REQUEST
+            )
+
         return Response(
             {
-                "action": result.get("action", "followed"),
+                "action": result["action"],
                 "followers_count": Friendship.objects.filter(
-                    following=target_user,
-                    status__in=[Friendship.Status.FOLLOWING, Friendship.Status.FRIENDS],
+                    following=target_user, status=Friendship.Status.FOLLOWING
+                ).count(),
+            }
+        )
+
+
+class AddFriendView(views.APIView):
+    """Добавить в друзья"""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        username = request.data.get("username")
+        if not username:
+            return Response(
+                {"error": "username required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            target_user = User.objects.get(username=username, is_active=True)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if target_user == request.user:
+            return Response(
+                {"error": "Нельзя добавить себя в друзья"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = Friendship.add_friend(request.user, target_user)
+
+        if result.get("error"):
+            return Response(
+                {"error": result["error"]}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {
+                "action": result["action"],
+                "friends_count": Friendship.objects.filter(
+                    follower=request.user, status=Friendship.Status.FRIENDS
+                ).count(),
+            }
+        )
+
+
+class UnfriendView(views.APIView):
+    """Удалить из друзей"""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        username = request.data.get("username")
+        if not username:
+            return Response(
+                {"error": "username required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            target_user = User.objects.get(username=username, is_active=True)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if target_user == request.user:
+            return Response(
+                {"error": "Нельзя удалить себя из друзей"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = Friendship.unfriend(request.user, target_user)
+
+        if result.get("error"):
+            return Response(
+                {"error": result["error"]}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {
+                "action": result["action"],
+                "friends_count": Friendship.objects.filter(
+                    follower=request.user, status=Friendship.Status.FRIENDS
                 ).count(),
             }
         )
