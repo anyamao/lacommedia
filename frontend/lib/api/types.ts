@@ -5,6 +5,16 @@ export interface ApiResponse<T> {
   results: T[];
 }
 
+export interface Character {
+  id: number;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  about: string;
+  image: string | null;
+  image_url: string | null;
+}
+
 export interface Book {
   id: number;
   name: string;
@@ -15,22 +25,33 @@ export interface Book {
   description: string;
   rating: number;
   cover: string | null;
+  cover_url: string | null;
   review: string;
   is_active: boolean;
   views_count: number;
   created_at: string;
   updated_at: string;
-}
-export interface BookFilters {
-  genre?: string;
-  author?: string;
-  year?: number;
-  rating_gte?: number;
-  rating_lte?: number;
-  search?: string;
-  ordering?: string;
+  hours_to_read: number;
+  brief_summary: string;
+  characters: Character[];
 }
 
+export interface BookFilters {
+  search?: string;
+  genre?: string;
+  author?: string;
+  country?: string;
+  genre__in?: string;
+  author__in?: string;
+  country__in?: string;
+  year__gte?: number;
+  year__lte?: number;
+  hours_to_read__gte?: number;
+  hours_to_read__lte?: number;
+  rating__gte?: number;
+  rating__lte?: number;
+  ordering?: string;
+}
 export interface BookCreate {
   name: string;
   author: string;

@@ -9,7 +9,11 @@ class BookService {
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== "") {
-          params.append(key, String(value));
+          if (Array.isArray(value)) {
+            params.append(key, value.join(","));
+          } else {
+            params.append(key, String(value));
+          }
         }
       });
     }
@@ -19,9 +23,14 @@ class BookService {
       ? `${API_ENDPOINTS.BOOKS.LIST}?${queryString}`
       : API_ENDPOINTS.BOOKS.LIST;
 
-    return apiClient.get<Book[]>(url);
+    try {
+      const response = await apiClient.get<Book[]>(url);
+      return response || [];
+    } catch (error) {
+      console.error("Error fetching books:", error);
+      return [];
+    }
   }
-
   async getBook(id: number): Promise<Book> {
     return apiClient.get<Book>(API_ENDPOINTS.BOOKS.DETAIL(id));
   }

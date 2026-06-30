@@ -35,7 +35,8 @@ export default function BookDetailPage() {
     );
   }
 
-  const coverUrl = book.cover ? `https://lacomedia.ru${book.cover}` : null;
+  const coverUrl =
+    book.cover_url || (book.cover ? `https://lacomedia.ru${book.cover}` : null);
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString("ru-RU", {
@@ -93,6 +94,11 @@ export default function BookDetailPage() {
                 <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
                   ⭐ {book.rating}
                 </span>
+                {book.hours_to_read > 0 && (
+                  <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm">
+                    ⏱️ {book.hours_to_read} ч
+                  </span>
+                )}
               </div>
 
               <div className="mt-4 flex items-center gap-4 text-sm text-gray-500">
@@ -107,16 +113,71 @@ export default function BookDetailPage() {
             </div>
           </div>
 
-          {/* Описание */}
-          <div className="p-6 md:p-8 border-t">
-            <h2 className="text-xl font-semibold mb-3">Описание</h2>
-            <p className="text-gray-700 leading-relaxed">{book.description}</p>
+          {/* Детали */}
+          <div className="p-6 md:p-8 border-t space-y-6">
+            {/* Краткий пересказ */}
+            {book.brief_summary && (
+              <div>
+                <h2 className="text-xl font-semibold mb-3">
+                  📖 Краткий пересказ
+                </h2>
+                <p className="text-gray-700 leading-relaxed">
+                  {book.brief_summary}
+                </p>
+              </div>
+            )}
 
+            {/* Главные герои */}
+            {book.characters && book.characters.length > 0 && (
+              <div>
+                <h2 className="text-xl font-semibold mb-3">🎭 Главные герои</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {book.characters.map((character) => (
+                    <div
+                      key={character.id}
+                      className="bg-gray-50 rounded-lg p-4 flex items-start gap-3 hover:bg-gray-100 transition"
+                    >
+                      {character.image_url ? (
+                        <img
+                          src={character.image_url}
+                          alt={character.full_name}
+                          className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                          {character.first_name?.[0] || "?"}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-semibold text-gray-800">
+                          {character.full_name}
+                        </p>
+                        {character.about && (
+                          <p className="text-sm text-gray-600 line-clamp-3">
+                            {character.about}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Описание */}
+            <div>
+              <h2 className="text-xl font-semibold mb-3">📝 Описание</h2>
+              <p className="text-gray-700 leading-relaxed">
+                {book.description}
+              </p>
+            </div>
+
+            {/* Рецензия */}
             {book.review && (
-              <>
-                <h2 className="text-xl font-semibold mt-6 mb-3">Рецензия</h2>
+              <div>
+                <h2 className="text-xl font-semibold mb-3">✍️ Рецензия</h2>
                 <p className="text-gray-700 leading-relaxed">{book.review}</p>
-              </>
+              </div>
             )}
           </div>
 
