@@ -1,0 +1,21 @@
+[0;1;32m●[0m lacommedia-backend.service
+     Loaded: loaded (]8;;file://7486015-cr426238.twc1.net/etc/systemd/system/lacommedia-backend.service/etc/systemd/system/lacommedia-backend.service]8;;; [0;1;32menabled[0m; preset: [0;1;32menabled[0m)
+     Active: [0;1;32mactive (running)[0m since Tue 2026-06-30 05:09:14 UTC; 18min ago
+   Main PID: 105460 (gunicorn)
+      Tasks: 5 (limit: 2315)
+     Memory: 145.1M (peak: 145.4M)
+        CPU: 1.765s
+     CGroup: /system.slice/lacommedia-backend.service
+             ├─[0;38;5;245m105460 /home/vika/lacommedia/backend/venv/bin/python3 /home/vika/lacommedia/backend/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8080 lacommedia.wsgi:application[0m
+             ├─[0;38;5;245m105461 /home/vika/lacommedia/backend/venv/bin/python3 /home/vika/lacommedia/backend/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8080 lacommedia.wsgi:application[0m
+             ├─[0;38;5;245m105462 /home/vika/lacommedia/backend/venv/bin/python3 /home/vika/lacommedia/backend/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8080 lacommedia.wsgi:application[0m
+             └─[0;38;5;245m105463 /home/vika/lacommedia/backend/venv/bin/python3 /home/vika/lacommedia/backend/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8080 lacommedia.wsgi:application[0m
+
+Jun 30 05:09:14 7486015-cr426238.twc1.net systemd[1]: Started lacommedia-backend.service.
+Jun 30 05:09:14 7486015-cr426238.twc1.net gunicorn[105460]: [2026-06-30 05:09:14 +0000] [105460] [INFO] Starting gunicorn 26.0.0
+Jun 30 05:09:14 7486015-cr426238.twc1.net gunicorn[105460]: [2026-06-30 05:09:14 +0000] [105460] [INFO] Listening at: http://0.0.0.0:8080 (105460)
+Jun 30 05:09:14 7486015-cr426238.twc1.net gunicorn[105460]: [2026-06-30 05:09:14 +0000] [105460] [INFO] Using worker: sync
+Jun 30 05:09:14 7486015-cr426238.twc1.net gunicorn[105461]: [2026-06-30 05:09:14 +0000] [105461] [INFO] Booting worker with pid: 105461
+Jun 30 05:09:14 7486015-cr426238.twc1.net gunicorn[105462]: [2026-06-30 05:09:14 +0000] [105462] [INFO] Booting worker with pid: 105462
+Jun 30 05:09:14 7486015-cr426238.twc1.net gunicorn[105463]: [2026-06-30 05:09:14 +0000] [105463] [INFO] Booting worker with pid: 105463
+Jun 30 05:09:14 7486015-cr426238.twc1.net gunicorn[105460]: [2026-06-30 05:09:14 +0000] [105460] [INFO] Control socket listening at /home/vika/.gunicorn/gunicorn.ctl
