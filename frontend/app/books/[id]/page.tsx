@@ -1,16 +1,18 @@
 "use client";
-
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useBook } from "@/hooks/useBook";
 import { ActionButtons } from "@/components/interactions/ActionButtons";
 import { CommentSection } from "@/components/interactions/CommentSection";
 import Link from "next/link";
-
+import { ReviewSection } from "@/components/books/ReviewSection";
 export default function BookDetailPage() {
   const params = useParams();
   const id = parseInt(params.id as string);
   const { book, isLoading, isError } = useBook(id);
-
+  const [activeTab, setActiveTab] = useState<"comments" | "reviews">(
+    "comments",
+  );
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -179,11 +181,49 @@ export default function BookDetailPage() {
                 <p className="text-gray-700 leading-relaxed">{book.review}</p>
               </div>
             )}
+            {book.ideas && (
+              <div>
+                <h2 className="text-xl font-semibold mb-3">💡 Идеи из книги</h2>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {book.ideas}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex border-b bg-white px-6 pt-4">
+            <button
+              onClick={() => setActiveTab("comments")}
+              className={`px-4 py-2 text-sm font-medium transition ${
+                activeTab === "comments"
+                  ? "border-b-2 border-blue-600 text-blue-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              💬 Комментарии (
+              {book.interactions?.filter((i) => i.text)?.length || 0})
+            </button>
+            <button
+              onClick={() => setActiveTab("reviews")}
+              className={`px-4 py-2 text-sm font-medium transition ${
+                activeTab === "reviews"
+                  ? "border-b-2 border-blue-600 text-blue-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              ⭐ Отзывы ({book.reviews_count || 0})
+              {book.average_rating > 0 && ` • ${book.average_rating}/10`}
+            </button>
           </div>
 
-          {/* Комментарии */}
-          <div className="p-6 md:p-8 border-t">
-            <CommentSection content_type="books.book" object_id={book.id} />
+          {/* Контент вкладок */}
+          <div className="bg-white rounded-b-2xl shadow-xl p-6 md:p-8">
+            {activeTab === "comments" ? (
+              <CommentSection content_type="books.book" object_id={book.id} />
+            ) : (
+              <ReviewSection bookId={book.id} />
+            )}
           </div>
         </div>
       </div>

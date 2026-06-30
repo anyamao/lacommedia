@@ -14,7 +14,19 @@ export interface Character {
   image: string | null;
   image_url: string | null;
 }
-
+export interface Review {
+  id: number;
+  book: number;
+  user: number;
+  username: string;
+  user_avatar: string | null;
+  rating: number;
+  text: string;
+  created_at: string;
+  updated_at: string;
+  can_edit: boolean;
+  can_delete: boolean;
+}
 export interface Book {
   id: number;
   name: string;
@@ -32,6 +44,8 @@ export interface Book {
   created_at: string;
   updated_at: string;
   hours_to_read: number;
+  average_rating?: number;
+  reviews_count?: number;
   brief_summary: string;
   characters: Character[];
 }

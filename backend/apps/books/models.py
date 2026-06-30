@@ -54,6 +54,9 @@ class Book(models.Model):
         verbose_name="Год издания",
         validators=[MinValueValidator(1000), MaxValueValidator(timezone.now().year)],
     )
+    average_rating = models.DecimalField(
+        max_digits=3, decimal_places=1, default=0.0, verbose_name="Средний рейтинг"
+    )
     description = models.TextField(verbose_name="Описание")
     rating = models.DecimalField(
         max_digits=3,
@@ -64,6 +67,11 @@ class Book(models.Model):
     )
     cover = models.ImageField(
         upload_to="covers/", blank=True, null=True, verbose_name="Обложка"
+    )
+    ideas = models.TextField(
+        blank=True,
+        verbose_name="Идеи из книги",
+        help_text="Что можно вынести из этой книги (опционально)",
     )
     review = models.TextField(blank=True, verbose_name="Рецензия")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -98,6 +106,16 @@ class Book(models.Model):
     def __str__(self):
         return f"{self.name} - {self.author}"
 
+    def update_average_rating(self):
+        """Обновить средний рейтинг отзывов"""
+        from django.db.models import Avg
+
+        avg = self.reviews.filter(is_active=True).aggregate(Avg("rating"))[
+            "rating__avg"
+        ]
+        self.average_rating = avg if avg else 0.0
+        self.save(update_fields=["average_rating"])
+
     @property
     def short_description(self):
         """Первые 100 символов описания"""
@@ -106,3 +124,120 @@ class Book(models.Model):
                 return self.description[:97] + "..."
             return self.description
         return ""
+
+
+class Review(models.Model):
+    """Отзыв на книгу"""
+
+    book = models.ForeignKey(
+        "Book", on_delete=models.CASCADE, related_name="reviews", verbose_name="Книга"
+    )
+    user = models.ForeignKey(
+        "users.User",
+        on_delete=models.CASCADE,
+        related_name="book_reviews",
+        verbose_name="Пользователь",
+    )
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        verbose_name="Оценка (1-10)",
+    )
+    text = models.TextField(verbose_name="Текст отзыва")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "books_review"
+        unique_together = ["book", "user"]  # ✅ Один отзыв от пользователя на книгу
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["book", "user"]),
+            models.Index(fields=["rating"]),
+        ]
+        verbose_name = "Отзыв"
+        verbose_name_plural = "Отзывы"
+
+    def toggle_reaction(self, user, reaction_type):
+        """Переключить лайк/дизлайк на отзыве"""
+        from .models import ReviewReaction
+
+        existing = ReviewReaction.objects.filter(review=self, user=user).first()
+
+        if existing:
+            if existing.reaction_type == reaction_type:
+                # Удаляем реакцию (отмена)
+                existing.delete()
+                likes_count = self.reactions.filter(reaction_type="like").count()
+                dislikes_count = self.reactions.filter(reaction_type="dislike").count()
+                return {
+                    "action": "removed",
+                    "likes_count": likes_count,
+                    "dislikes_count": dislikes_count,
+                    "user_reaction": None,
+                }
+            else:
+                # Меняем реакцию
+                existing.reaction_type = reaction_type
+                existing.save()
+                likes_count = self.reactions.filter(reaction_type="like").count()
+                dislikes_count = self.reactions.filter(reaction_type="dislike").count()
+                return {
+                    "action": "changed",
+                    "likes_count": likes_count,
+                    "dislikes_count": dislikes_count,
+                    "user_reaction": reaction_type,
+                }
+        else:
+            # Создаем новую реакцию
+            ReviewReaction.objects.create(
+                review=self, user=user, reaction_type=reaction_type
+            )
+            likes_count = self.reactions.filter(reaction_type="like").count()
+            dislikes_count = self.reactions.filter(reaction_type="dislike").count()
+            return {
+                "action": "added",
+                "likes_count": likes_count,
+                "dislikes_count": dislikes_count,
+                "user_reaction": reaction_type,
+            }
+
+    def __str__(self):
+        return f"{self.user.username} - {self.book.name} ({self.rating}/10)"
+
+
+class ReviewReaction(models.Model):
+    """Лайк/дизлайк отзыва"""
+
+    class ReactionType(models.TextChoices):
+        LIKE = "like", "Лайк"
+        DISLIKE = "dislike", "Дизлайк"
+
+    review = models.ForeignKey(
+        Review,
+        on_delete=models.CASCADE,
+        related_name="reactions",  # ✅ Убедитесь, что это поле есть!
+        verbose_name="Отзыв",
+    )
+    user = models.ForeignKey(
+        "users.User",
+        on_delete=models.CASCADE,
+        related_name="review_reactions",
+        verbose_name="Пользователь",
+    )
+    reaction_type = models.CharField(
+        max_length=10, choices=ReactionType.choices, verbose_name="Тип реакции"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "books_review_reaction"
+        unique_together = ["review", "user"]
+        indexes = [
+            models.Index(fields=["review", "user"]),
+        ]
+        verbose_name = "Реакция на отзыв"
+        verbose_name_plural = "Реакции на отзывы"
+
+    def __str__(self):
+        return f"{self.user.username} - {self.reaction_type} - {self.review.id}"
