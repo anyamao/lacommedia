@@ -6,12 +6,13 @@ import { Book, BookFilters } from "@/lib/api/types";
 
 interface UseBooksReturn {
   books: Book[];
-  loading: boolean;
-  error: string | null; // ✅ string | null
+  isLoading: boolean;
+  isError: Error | null;
   mutate: () => void;
 }
 
 export function useBooks(filters?: BookFilters): UseBooksReturn {
+  // ✅ Ключ зависит от фильтров
   const cacheKey = filters ? ["books", JSON.stringify(filters)] : ["books"];
 
   const { data, error, mutate, isLoading } = useSWR(
@@ -22,20 +23,16 @@ export function useBooks(filters?: BookFilters): UseBooksReturn {
       revalidateOnReconnect: false,
       dedupingInterval: 60000,
       refreshInterval: 0,
-      errorRetryCount: 3,
-      errorRetryInterval: 5000,
       keepPreviousData: true,
+      // ✅ Важно: возвращаем пустой массив, если данных нет
+      fallbackData: [],
     },
   );
 
   return {
-    books: data || [],
-    loading: isLoading,
-    error: error
-      ? error instanceof Error
-        ? error.message
-        : String(error)
-      : null, // ✅ Преобразуем Error в string
+    books: data || [], // ✅ Всегда массив, даже если data undefined
+    isLoading,
+    isError: error || null,
     mutate,
   };
 }

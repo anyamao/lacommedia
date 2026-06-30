@@ -17,10 +17,10 @@ export interface Book {
   cover: string | null;
   review: string;
   is_active: boolean;
+  views_count: number;
   created_at: string;
   updated_at: string;
 }
-
 export interface BookFilters {
   genre?: string;
   author?: string;
@@ -42,5 +42,31 @@ export interface BookCreate {
   cover?: File | null;
   review?: string;
 }
+export interface Interaction {
+  id: number;
+  user: number;
+  user_email: string;
+  username: string;
+  avatar_url: string | null;
+  interaction_type: "like" | "dislike" | "favorite" | "read" | "view";
+  text: string | null;
+  parent: number | null;
+  created_at: string;
+  updated_at: string;
+}
 
+export interface InteractionCounts {
+  likes: number;
+  dislikes: number;
+  favorites: number;
+  reads: number;
+  views: number;
+  comments: number;
+}
+
+export interface ToggleInteractionResponse {
+  action: "added" | "removed";
+  counts: InteractionCounts;
+  interaction: Interaction | null;
+}
 export interface BookUpdate extends Partial<BookCreate> {}

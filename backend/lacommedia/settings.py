@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "corsheaders",
     "drf_spectacular",
+    "apps.interactions.apps.InteractionsConfig",
     "apps.books.apps.BooksConfig",
     "apps.users.apps.UsersConfig",
 ]

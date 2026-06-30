@@ -19,6 +19,7 @@ urlpatterns = [
     # Books
     path("api/v1/books/", include("apps.books.urls")),
     # API Docs
+    path("api/v1/interactions/", include("apps.interactions.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",

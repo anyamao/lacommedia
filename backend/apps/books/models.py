@@ -14,6 +14,7 @@ class Book(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    views_count = models.PositiveIntegerField(default=0, verbose_name="Просмотры")
 
     def __str__(self):
         return self.name
