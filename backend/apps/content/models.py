@@ -2,8 +2,30 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+import uuid
+import os
 
 User = get_user_model()
+
+
+def get_upload_path(instance, filename):
+    """Генерирует путь для загрузки файлов"""
+    # Определяем тип контента
+    content_type = (
+        instance.content_type if hasattr(instance, "content_type") else "content"
+    )
+
+    # Получаем ID объекта
+    obj_id = instance.id or 0
+
+    # Получаем расширение файла
+    ext = filename.split(".")[-1].lower()
+
+    # Генерируем уникальное имя
+    unique_filename = f"{uuid.uuid4().hex[:10]}.{ext}"
+
+    # Возвращаем путь
+    return f"{content_type}s/{obj_id}/{unique_filename}"
 
 
 class Content(models.Model):
@@ -22,8 +44,12 @@ class Content(models.Model):
     )
     title = models.CharField(max_length=255, verbose_name="Название")
     description = models.TextField(verbose_name="Описание")
+
     cover = models.ImageField(
-        upload_to="covers/", blank=True, null=True, verbose_name="Обложка/Постер"
+        upload_to=get_upload_path,  # ✅ Используем динамическую функцию
+        blank=True,
+        null=True,
+        verbose_name="Обложка/Постер",
     )
     rating = models.DecimalField(
         max_digits=3,
