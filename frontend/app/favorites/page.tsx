@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { apiClient } from "@/lib/api/client";
+import { useToast } from "@/context/ToastContext";
 
 interface FavoriteItem {
   id: number;
@@ -22,6 +23,7 @@ const typeEmojis: Record<string, string> = {
   movie: "🎬",
   painting: "🖼️",
   music: "🎵",
+  article: "📄",
 };
 
 const typeLabels: Record<string, string> = {
@@ -29,6 +31,7 @@ const typeLabels: Record<string, string> = {
   movie: "Фильмы",
   painting: "Картины",
   music: "Музыка",
+  article: "Статьи",
 };
 
 const typePaths: Record<string, string> = {
@@ -36,28 +39,34 @@ const typePaths: Record<string, string> = {
   movie: "movies",
   painting: "paintings",
   music: "music",
+  article: "articles",
 };
 
 export default function FavoritesPage() {
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("all");
+  const { showToast } = useToast();
 
   useEffect(() => {
     const fetchFavorites = async () => {
       try {
-        // TODO: Заменить на реальный API эндпоинт
-        const response = await apiClient.get("/interactions/user_interaction/");
-        // Временная заглушка — пока нет отдельного эндпоинта
-        setFavorites([]);
-      } catch (error) {
+        // ✅ Правильный эндпоинт
+        const response = await apiClient.get("/content/favorites/");
+        setFavorites(response || []);
+      } catch (error: any) {
         console.error("Error fetching favorites:", error);
+        if (error.response?.status === 401) {
+          showToast("Войдите, чтобы видеть избранное", "info");
+        } else {
+          showToast("Ошибка загрузки избранного", "error");
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchFavorites();
-  }, []);
+  }, [showToast]);
 
   const filteredFavorites =
     activeTab === "all"
@@ -81,7 +90,7 @@ export default function FavoritesPage() {
         <div className="flex gap-2 mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab("all")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
               activeTab === "all"
                 ? "bg-blue-600 text-white"
                 : "bg-white text-gray-600 hover:bg-gray-100"
@@ -97,7 +106,7 @@ export default function FavoritesPage() {
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
                   activeTab === key
                     ? "bg-blue-600 text-white"
                     : "bg-white text-gray-600 hover:bg-gray-100"
@@ -114,6 +123,9 @@ export default function FavoritesPage() {
           <div className="text-center py-12 bg-white rounded-xl shadow-sm">
             <p className="text-2xl text-gray-400">❤️</p>
             <p className="text-gray-500 mt-2">У вас пока нет избранных</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Нажмите ❤️ на странице контента, чтобы добавить в избранное
+            </p>
             <Link
               href="/books"
               className="text-blue-600 hover:underline mt-4 inline-block"

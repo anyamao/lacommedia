@@ -1,4 +1,4 @@
-export type ContentType = "book" | "movie" | "painting" | "music";
+export type ContentType = "book" | "movie" | "painting" | "music" | "article";
 
 export interface Character {
   id: number;

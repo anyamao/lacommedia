@@ -6,11 +6,13 @@ import { useContentList } from "@/hooks/useContent";
 import Link from "next/link";
 import { useDebounce } from "@/hooks/useDebounce";
 
+// Определяем тип из пути
 const getContentTypeFromPath = (pathname: string): string => {
   if (pathname.startsWith("/books")) return "book";
   if (pathname.startsWith("/movies")) return "movie";
   if (pathname.startsWith("/paintings")) return "painting";
   if (pathname.startsWith("/music")) return "music";
+  if (pathname.startsWith("/articles")) return "article";
   return "book";
 };
 
@@ -19,6 +21,7 @@ const getTypePath = (pathname: string): string => {
   if (pathname.startsWith("/movies")) return "movies";
   if (pathname.startsWith("/paintings")) return "paintings";
   if (pathname.startsWith("/music")) return "music";
+  if (pathname.startsWith("/articles")) return "articles";
   return "books";
 };
 
@@ -27,6 +30,7 @@ const typeLabels: Record<string, string> = {
   movie: "Фильмы",
   painting: "Картины",
   music: "Музыка",
+  article: "Статьи",
 };
 
 const typeEmojis: Record<string, string> = {
@@ -34,6 +38,7 @@ const typeEmojis: Record<string, string> = {
   movie: "🎬",
   painting: "🖼️",
   music: "🎵",
+  article: "📄",
 };
 
 export default function ContentListPage() {
@@ -66,7 +71,6 @@ export default function ContentListPage() {
     return f;
   }, [contentType, debouncedSearch, selectedGenres, selectedCountries, sortBy]);
 
-  // ✅ Исправлено: isError вместо error
   const { content, isLoading, isError } = useContentList(filters);
 
   const availableGenres = useMemo(() => {
@@ -97,7 +101,6 @@ export default function ContentListPage() {
     }
   };
 
-  // ✅ Исправлено: isError вместо error
   if (isError) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -135,7 +138,7 @@ export default function ContentListPage() {
               placeholder={`🔍 Поиск по ${typeLabels[contentType].toLowerCase()}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 min-w-[200px] px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 min-w-[200px] px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
 
             <select

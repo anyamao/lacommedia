@@ -7,20 +7,18 @@ User = get_user_model()
 
 
 class Content(models.Model):
-    """Базовая модель для всего контента (книги, фильмы, картины, музыка)"""
+    """Базовая модель для всего контента"""
 
     class ContentType(models.TextChoices):
         BOOK = "book", "Книга"
         MOVIE = "movie", "Фильм"
         PAINTING = "painting", "Картина"
         MUSIC = "music", "Музыка"
+        ARTICLE = "article", "Статья"  # ✅ Добавлено
 
-    # Тип контента
     content_type = models.CharField(
         max_length=20, choices=ContentType.choices, verbose_name="Тип контента"
     )
-
-    # Базовые поля (общие для всех)
     title = models.CharField(max_length=255, verbose_name="Название")
     description = models.TextField(verbose_name="Описание")
     cover = models.ImageField(
@@ -41,35 +39,25 @@ class Content(models.Model):
     )
     genre = models.CharField(max_length=100, verbose_name="Жанр")
     country = models.CharField(max_length=100, blank=True, verbose_name="Страна")
-
-    # Поля для взаимодействия
     views_count = models.PositiveIntegerField(default=0, verbose_name="Просмотры")
     hours_to_read = models.PositiveIntegerField(
         default=0, verbose_name="Часов на изучение/просмотр"
     )
-
-    # Текстовые поля
     brief_summary = models.TextField(blank=True, verbose_name="Краткий пересказ/сюжет")
     review = models.TextField(blank=True, verbose_name="Рецензия")
     ideas = models.TextField(blank=True, verbose_name="Идеи из произведения")
-
-    # Интересные факты
     interesting_facts = models.JSONField(
         default=list,
         blank=True,
         verbose_name="Интересные факты",
         help_text="Массив объектов {title: 'Заголовок', fact: 'Текст факта'}",
     )
-
-    # Специфичные поля (будут использоваться в зависимости от content_type)
     extra_data = models.JSONField(
         default=dict,
         blank=True,
         verbose_name="Дополнительные данные",
         help_text="Специфичные поля для разных типов контента",
     )
-
-    # Системные поля
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -103,24 +91,7 @@ class Content(models.Model):
             return self.description
         return ""
 
-    @property
-    def is_book(self):
-        return self.content_type == self.ContentType.BOOK
-
-    @property
-    def is_movie(self):
-        return self.content_type == self.ContentType.MOVIE
-
-    @property
-    def is_painting(self):
-        return self.content_type == self.ContentType.PAINTING
-
-    @property
-    def is_music(self):
-        return self.content_type == self.ContentType.MUSIC
-
     def update_average_rating(self):
-        """Обновить средний рейтинг отзывов"""
         from django.db.models import Avg
 
         avg = self.reviews.filter(is_active=True).aggregate(Avg("rating"))[
@@ -130,18 +101,14 @@ class Content(models.Model):
         self.save(update_fields=["rating"])
 
     def get_extra_field(self, key, default=None):
-        """Получить значение из extra_data"""
         return self.extra_data.get(key, default)
 
     def set_extra_field(self, key, value):
-        """Установить значение в extra_data"""
         self.extra_data[key] = value
         self.save(update_fields=["extra_data"])
 
 
 class Character(models.Model):
-    """Герои/персонажи (для книг и фильмов)"""
-
     content = models.ForeignKey(
         Content,
         on_delete=models.CASCADE,
@@ -181,8 +148,6 @@ class Character(models.Model):
 
 
 class Review(models.Model):
-    """Отзывы на контент"""
-
     content = models.ForeignKey(
         Content,
         on_delete=models.CASCADE,
@@ -215,12 +180,13 @@ class Review(models.Model):
         verbose_name = "Отзыв"
         verbose_name_plural = "Отзывы"
 
+    def __str__(self):
+        return f"{self.user.username} - {self.content.title} ({self.rating}/10)"
+
     def toggle_reaction(self, user, reaction_type):
-        """Переключить лайк/дизлайк на отзыве"""
-        from .models import ReviewReaction  # ✅ Импорт внутри метода
+        from .models import ReviewReaction
 
         existing = ReviewReaction.objects.filter(review=self, user=user).first()
-
         if existing:
             if existing.reaction_type == reaction_type:
                 existing.delete()
@@ -256,13 +222,8 @@ class Review(models.Model):
                 "user_reaction": reaction_type,
             }
 
-    def __str__(self):
-        return f"{self.user.username} - {self.content.title} ({self.rating}/10)"
-
 
 class ReviewReaction(models.Model):
-    """Лайк/дизлайк отзыва"""
-
     class ReactionType(models.TextChoices):
         LIKE = "like", "Лайк"
         DISLIKE = "dislike", "Дизлайк"
@@ -273,7 +234,7 @@ class ReviewReaction(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="content_review_reactions",  # ✅ УНИКАЛЬНОЕ ИМЯ
+        related_name="content_review_reactions",
         verbose_name="Пользователь",
     )
     reaction_type = models.CharField(
@@ -295,8 +256,6 @@ class ReviewReaction(models.Model):
 
 
 class QuizQuestion(models.Model):
-    """Вопросы для теста по контенту"""
-
     content = models.ForeignKey(
         Content,
         on_delete=models.CASCADE,

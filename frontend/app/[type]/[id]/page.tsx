@@ -17,6 +17,7 @@ const getContentTypeFromPath = (pathname: string): string => {
   if (pathname.startsWith("/movies")) return "movie";
   if (pathname.startsWith("/paintings")) return "painting";
   if (pathname.startsWith("/music")) return "music";
+  if (pathname.startsWith("/articles")) return "article";
   return "book";
 };
 
@@ -26,6 +27,7 @@ const getTypePath = (pathname: string): string => {
   if (pathname.startsWith("/movies")) return "movies";
   if (pathname.startsWith("/paintings")) return "paintings";
   if (pathname.startsWith("/music")) return "music";
+  if (pathname.startsWith("/articles")) return "articles";
   return "books";
 };
 
@@ -34,6 +36,7 @@ const typeEmojis: Record<string, string> = {
   movie: "🎬",
   painting: "🖼️",
   music: "🎵",
+  article: "📄",
 };
 
 const typeLabels: Record<string, string> = {
@@ -41,6 +44,7 @@ const typeLabels: Record<string, string> = {
   movie: "Фильм",
   painting: "Картина",
   music: "Музыка",
+  article: "Статья",
 };
 
 const typePlural: Record<string, string> = {
@@ -48,6 +52,7 @@ const typePlural: Record<string, string> = {
   movie: "фильмов",
   painting: "картин",
   music: "музыки",
+  article: "статей",
 };
 
 export default function ContentDetailPage() {
@@ -66,11 +71,13 @@ export default function ContentDetailPage() {
     by_author: [],
     by_genre: [],
   });
+  const [latestContent, setLatestContent] = useState<any[]>([]);
 
   // ✅ Определяем тип из пути
   const contentType = getContentTypeFromPath(pathname);
   const typePath = getTypePath(pathname);
 
+  // Загружаем похожее
   useEffect(() => {
     if (content?.id) {
       apiClient
@@ -79,6 +86,14 @@ export default function ContentDetailPage() {
         .catch(console.error);
     }
   }, [content?.id]);
+
+  // Загружаем последние 10 добавлений
+  useEffect(() => {
+    apiClient
+      .get("/content/latest/?limit=10")
+      .then((data: any) => setLatestContent(data))
+      .catch(console.error);
+  }, []);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -349,7 +364,9 @@ export default function ContentDetailPage() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <span className="text-2xl text-gray-400">📖</span>
+                            <span className="text-2xl text-gray-400">
+                              {typeEmojis[item.content_type]}
+                            </span>
                           )}
                         </div>
                         <div className="p-2">
@@ -386,7 +403,9 @@ export default function ContentDetailPage() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <span className="text-2xl text-gray-400">📖</span>
+                            <span className="text-2xl text-gray-400">
+                              {typeEmojis[item.content_type]}
+                            </span>
                           )}
                         </div>
                         <div className="p-2">
@@ -409,13 +428,21 @@ export default function ContentDetailPage() {
           <div className="flex border-b bg-white px-6 pt-4">
             <button
               onClick={() => setActiveTab("comments")}
-              className={`px-4 py-2 text-sm font-medium transition ${activeTab === "comments" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+              className={`px-4 py-2 text-sm font-medium transition ${
+                activeTab === "comments"
+                  ? "border-b-2 border-blue-600 text-blue-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
             >
               💬 Комментарии
             </button>
             <button
               onClick={() => setActiveTab("reviews")}
-              className={`px-4 py-2 text-sm font-medium transition ${activeTab === "reviews" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+              className={`px-4 py-2 text-sm font-medium transition ${
+                activeTab === "reviews"
+                  ? "border-b-2 border-blue-600 text-blue-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
             >
               ⭐ Отзывы ({content.reviews_count || 0})
               {content.rating > 0 && ` • ${content.rating}/10`}
@@ -423,7 +450,11 @@ export default function ContentDetailPage() {
             {content.quiz_questions && content.quiz_questions.length > 0 && (
               <button
                 onClick={() => setActiveTab("quiz")}
-                className={`px-4 py-2 text-sm font-medium transition ${activeTab === "quiz" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                className={`px-4 py-2 text-sm font-medium transition ${
+                  activeTab === "quiz"
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
               >
                 🧠 Тест
               </button>
@@ -448,6 +479,67 @@ export default function ContentDetailPage() {
             )}
           </div>
         </div>
+
+        {/* ✅ Лента последних добавлений */}
+        {latestContent.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 mt-8">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              🆕 Последние добавления
+            </h3>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {latestContent.slice(0, 10).map((item: any) => {
+                const emoji =
+                  item.content_type === "book"
+                    ? "📚"
+                    : item.content_type === "movie"
+                      ? "🎬"
+                      : item.content_type === "painting"
+                        ? "🖼️"
+                        : item.content_type === "music"
+                          ? "🎵"
+                          : "📄";
+                const typePath =
+                  item.content_type === "book"
+                    ? "books"
+                    : item.content_type === "movie"
+                      ? "movies"
+                      : item.content_type === "painting"
+                        ? "paintings"
+                        : item.content_type === "music"
+                          ? "music"
+                          : "articles";
+                return (
+                  <Link
+                    key={item.id}
+                    href={`/${typePath}/${item.id}`}
+                    className="flex-shrink-0 w-36 bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition"
+                  >
+                    <div className="h-24 bg-gray-200 flex items-center justify-center">
+                      {item.cover_url ? (
+                        <img
+                          src={item.cover_url}
+                          alt={item.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl text-gray-400">{emoji}</span>
+                      )}
+                    </div>
+                    <div className="p-2">
+                      <p className="text-xs font-medium truncate">
+                        {item.title}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {item.content_type_display}
+                      </p>
+                      <p className="text-xs text-gray-400">{item.genre}</p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

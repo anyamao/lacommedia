@@ -91,6 +91,53 @@ class ContentViewSet(viewsets.ModelViewSet):
             CharacterSerializer(character).data, status=status.HTTP_201_CREATED
         )
 
+    @action(detail=False, methods=["get"])
+    def latest(self, request):
+        """Получить 10 последних добавлений любого типа"""
+        limit = int(request.query_params.get("limit", 10))
+        latest_content = Content.objects.filter(is_active=True).order_by("-created_at")[
+            :limit
+        ]
+        return Response(
+            ContentListSerializer(
+                latest_content, many=True, context={"request": request}
+            ).data
+        )
+
+    @action(detail=False, methods=["get"])
+    def favorites(self, request):
+        """Получить все избранные объекты текущего пользователя"""
+        if not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        from apps.interactions.models import Interaction
+        from django.contrib.contenttypes.models import ContentType
+
+        # Получаем все взаимодействия типа 'favorite'
+        favorite_interactions = Interaction.objects.filter(
+            user=request.user, interaction_type="favorite"
+        )
+
+        # Собираем все объекты
+        result = []
+        for interaction in favorite_interactions:
+            try:
+                content_type = interaction.content_type
+                model_class = content_type.model_class()
+                obj = model_class.objects.get(id=interaction.object_id, is_active=True)
+
+                # Сериализуем объект
+                serializer = ContentListSerializer(obj, context={"request": request})
+                result.append(serializer.data)
+            except Exception as e:
+                print(f"Error fetching favorite: {e}")
+                continue
+
+        return Response(result)
+
     @action(detail=True, methods=["get"])
     def similar(self, request, pk=None):
         """Получить похожий контент (по автору/жанру)"""
