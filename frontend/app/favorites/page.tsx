@@ -51,8 +51,9 @@ export default function FavoritesPage() {
   useEffect(() => {
     const fetchFavorites = async () => {
       try {
-        // ✅ Правильный эндпоинт
-        const response = await apiClient.get("/content/favorites/");
+        const response = await apiClient.get<FavoriteItem[]>(
+          "/content/favorites/",
+        );
         setFavorites(response || []);
       } catch (error: any) {
         console.error("Error fetching favorites:", error);
@@ -82,7 +83,7 @@ export default function FavoritesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <main className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4">
         <h1 className="text-3xl font-bold mb-6">❤️ Избранное</h1>
 
@@ -184,6 +185,6 @@ export default function FavoritesPage() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

@@ -7,6 +7,46 @@ import Link from "next/link";
 import { ActionButtons } from "@/components/interactions/ActionButtons";
 import { CommentSection } from "@/components/interactions/CommentSection";
 
+interface Course {
+  id: number;
+  title: string;
+  description: string;
+  cover_url: string | null;
+  topic: string;
+  authors: string[];
+  total_time: number;
+  lessons_count: number;
+  lessons: Lesson[];
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+}
+
+interface Lesson {
+  id: number;
+  title: string;
+  content: string;
+  duration: number;
+  order: number;
+  is_active: boolean;
+}
+
+interface Progress {
+  is_completed: boolean;
+  completed_at: string | null;
+  lessons: {
+    lesson_id: number;
+    title: string;
+    is_completed: boolean;
+    score: number;
+  }[];
+  total_lessons: number;
+  completed_lessons: number;
+}
+
+// ✅ Fetcher
+const fetcher = <T,>(url: string): Promise<T> => apiClient.get<T>(url);
+
 export default function CoursePromoPage() {
   const params = useParams();
   const id = parseInt(params.id as string);
@@ -15,16 +55,14 @@ export default function CoursePromoPage() {
     data: course,
     isLoading,
     error,
-  } = useSWR(`/courses/${id}/`, () => apiClient.get(`/courses/${id}/`));
+  } = useSWR<Course>(`/courses/${id}/`, fetcher<Course>);
 
-  const { data: progress } = useSWR(`/courses/${id}/progress/`, () =>
-    apiClient.get(`/courses/${id}/progress/`).catch(() => null),
-  );
-
-  // ✅ Добавляем загрузку последних курсов
-  const { data: latestCourses } = useSWR(
-    "/courses/?ordering=-created_at&limit=6",
-    () => apiClient.get("/courses/?ordering=-created_at&limit=6"),
+  const { data: progress } = useSWR<Progress>(
+    `/courses/${id}/progress/`,
+    fetcher<Progress>,
+    {
+      revalidateOnFocus: false,
+    },
   );
 
   if (isLoading) {
@@ -211,9 +249,9 @@ export default function CoursePromoPage() {
         <div className="mt-8 bg-white rounded-2xl shadow-xl p-6 md:p-8">
           <h2 className="text-xl font-semibold mb-4">📚 Уроки курса</h2>
           <div className="space-y-3">
-            {course.lessons?.map((lesson: any, index: number) => {
+            {course.lessons?.map((lesson: Lesson, index: number) => {
               const isCompleted =
-                progress?.lessons?.find((l: any) => l.lesson_id === lesson.id)
+                progress?.lessons?.find((l) => l.lesson_id === lesson.id)
                   ?.is_completed || false;
               return (
                 <div
@@ -250,48 +288,6 @@ export default function CoursePromoPage() {
         <div className="mt-8 bg-white rounded-2xl shadow-xl p-6 md:p-8">
           <CommentSection content_type="content.course" object_id={course.id} />
         </div>
-
-        {/* ✅ Последние курсы */}
-        {latestCourses && latestCourses.length > 0 && (
-          <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              🆕 Последние курсы
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {latestCourses
-                .filter((c: any) => c.id !== course.id)
-                .slice(0, 6)
-                .map((c: any) => (
-                  <Link
-                    key={c.id}
-                    href={`/courses/${c.id}/promo`}
-                    className="bg-gray-50 rounded-lg p-3 hover:shadow-md transition flex items-center gap-3"
-                  >
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-indigo-50 rounded flex items-center justify-center text-2xl flex-shrink-0">
-                      {c.cover_url ? (
-                        <img
-                          src={c.cover_url}
-                          alt={c.title}
-                          className="w-full h-full object-cover rounded"
-                        />
-                      ) : (
-                        "📚"
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{c.title}</p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {c.topic}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {c.lessons_count} уроков
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

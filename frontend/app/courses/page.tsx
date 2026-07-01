@@ -15,9 +15,12 @@ interface Course {
   authors: string[];
   total_time: number;
   lessons_count: number;
-  created_at: string;
   is_completed?: boolean;
+  created_at: string;
 }
+
+// ✅ Fetcher
+const fetcher = <T,>(url: string): Promise<T> => apiClient.get<T>(url);
 
 export default function CoursesPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,18 +29,17 @@ export default function CoursesPage() {
 
   const debouncedSearch = useDebounce(searchTerm, 500);
 
-  // ✅ Правильный URL: /courses/ (не /content/courses/)
   const url = `/courses/?search=${debouncedSearch || ""}${selectedTopic ? `&topic=${selectedTopic}` : ""}&ordering=${sortBy}`;
 
   const {
     data: courses,
     isLoading,
     error,
-  } = useSWR(url, () => apiClient.get(url));
+  } = useSWR<Course[]>(url, fetcher<Course[]>);
 
   const topics = useMemo(() => {
     const t = new Set<string>();
-    if (courses) {
+    if (courses && Array.isArray(courses)) {
       courses.forEach((c: Course) => {
         if (c.topic) t.add(c.topic);
       });
@@ -75,6 +77,8 @@ export default function CoursesPage() {
       </div>
     );
   }
+
+  const coursesList = courses || [];
 
   return (
     <main className="min-h-screen bg-gray-50 py-8">
@@ -120,14 +124,14 @@ export default function CoursesPage() {
         </div>
 
         {/* Список курсов */}
-        {courses?.length === 0 ? (
+        {coursesList.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow-sm">
             <p className="text-2xl text-gray-400">🎓</p>
             <p className="text-gray-500 mt-2">Курсы не найдены</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courses?.map((course: Course) => (
+            {coursesList.map((course: Course) => (
               <Link
                 key={course.id}
                 href={`/courses/${course.id}/promo`}
@@ -149,15 +153,12 @@ export default function CoursesPage() {
                   </div>
                 </div>
                 <div className="p-4">
-                  <h3 className="font-bold text-gray-800 truncate">
-                    {course.title}
-                  </h3>
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-gray-800 truncate">
+                  <div className="flex items-start justify-between">
+                    <h3 className="font-bold text-gray-800 truncate flex-1">
                       {course.title}
                     </h3>
                     {course.is_completed && (
-                      <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full flex-shrink-0">
+                      <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full flex-shrink-0 ml-2">
                         ✅ Пройден
                       </span>
                     )}

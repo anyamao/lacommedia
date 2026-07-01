@@ -38,6 +38,9 @@ const occupationEmojis: Record<string, string> = {
   other: "📌",
 };
 
+// ✅ Fetcher
+const fetcher = <T,>(url: string): Promise<T> => apiClient.get<T>(url);
+
 export default function PeoplePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOccupation, setSelectedOccupation] = useState<string>("");
@@ -45,18 +48,17 @@ export default function PeoplePage() {
 
   const debouncedSearch = useDebounce(searchTerm, 500);
 
-  // ✅ Правильный URL: /api/v1/people/ (не /content/people/)
   const url = `/people/?search=${debouncedSearch || ""}${selectedOccupation ? `&occupation=${selectedOccupation}` : ""}&ordering=${sortBy}`;
 
   const {
     data: people,
     isLoading,
     error,
-  } = useSWR(url, () => apiClient.get(url));
+  } = useSWR<Person[]>(url, fetcher<Person[]>);
 
   const occupations = useMemo(() => {
     const occs = new Set<string>();
-    if (people) {
+    if (people && Array.isArray(people)) {
       people.forEach((p: Person) => {
         if (p.occupation) occs.add(p.occupation);
       });
@@ -87,6 +89,8 @@ export default function PeoplePage() {
       </div>
     );
   }
+
+  const peopleList = people || [];
 
   return (
     <main className="min-h-screen bg-gray-50 py-8">
@@ -130,14 +134,14 @@ export default function PeoplePage() {
         </div>
 
         {/* Список людей */}
-        {people?.length === 0 ? (
+        {peopleList.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow-sm">
             <p className="text-2xl text-gray-400">👤</p>
             <p className="text-gray-500 mt-2">Люди не найдены</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {people?.map((person: Person) => (
+            {peopleList.map((person: Person) => (
               <Link
                 key={person.id}
                 href={`/people/${person.id}`}

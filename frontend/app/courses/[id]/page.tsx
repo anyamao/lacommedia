@@ -8,11 +8,73 @@ import Link from "next/link";
 import { QuizSection } from "@/components/books/QuizSection";
 import { useToast } from "@/context/ToastContext";
 
+interface Course {
+  id: number;
+  title: string;
+  description: string;
+  cover_url: string | null;
+  topic: string;
+  authors: string[];
+  total_time: number;
+  lessons_count: number;
+  lessons: Lesson[];
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+}
+
+interface Lesson {
+  id: number;
+  title: string;
+  content: string;
+  duration: number;
+  order: number;
+  quiz_questions: QuizQuestion[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface QuizQuestion {
+  id: number;
+  question: string;
+  options: string[];
+  correct_answer: number;
+}
+
+interface Progress {
+  is_completed: boolean;
+  completed_at: string | null;
+  lessons: {
+    lesson_id: number;
+    title: string;
+    is_completed: boolean;
+    score: number;
+  }[];
+  total_lessons: number;
+  completed_lessons: number;
+}
+
+// ✅ Тип для ответа при завершении урока
+interface CompleteLessonResponse {
+  lesson_completed: boolean;
+  score: number;
+  is_new_best: boolean;
+  course_completed: boolean;
+  course_completed_now: boolean;
+  completed_lessons: number;
+  total_lessons: number;
+  completion_percentage: number;
+}
+
+// ✅ Fetcher для SWR
+const fetcher = <T,>(url: string): Promise<T> => apiClient.get<T>(url);
+
 export default function CoursePage() {
   const params = useParams();
   const id = parseInt(params.id as string);
   const [selectedLessonId, setSelectedLessonId] = useState<number | null>(null);
-  const [progress, setProgress] = useState<any>(null);
+  const [progress, setProgress] = useState<Progress | null>(null);
   const { showToast } = useToast();
 
   const {
@@ -20,16 +82,19 @@ export default function CoursePage() {
     isLoading,
     error,
     mutate,
-  } = useSWR(`/courses/${id}/`, () => apiClient.get(`/courses/${id}/`));
+  } = useSWR<Course>(`/courses/${id}/`, fetcher<Course>);
 
-  const { data: progressData, mutate: mutateProgress } = useSWR(
+  const { data: progressData, mutate: mutateProgress } = useSWR<Progress>(
     `/courses/${id}/progress/`,
-    () => apiClient.get(`/courses/${id}/progress/`).catch(() => null),
+    fetcher<Progress>,
+    {
+      revalidateOnFocus: false,
+    },
   );
 
-  const { data: latestCourses } = useSWR(
+  const { data: latestCourses } = useSWR<Course[]>(
     "/courses/?ordering=-created_at&limit=6",
-    () => apiClient.get("/courses/?ordering=-created_at&limit=6"),
+    fetcher<Course[]>,
   );
 
   useEffect(() => {
@@ -39,23 +104,31 @@ export default function CoursePage() {
   }, [progressData]);
 
   useEffect(() => {
-    if (course?.lessons?.length > 0 && selectedLessonId === null) {
+    if (
+      course?.lessons &&
+      course.lessons.length > 0 &&
+      selectedLessonId === null
+    ) {
       setSelectedLessonId(course.lessons[0].id);
     }
   }, [course, selectedLessonId]);
 
   const selectedLesson = course?.lessons?.find(
-    (l: any) => l.id === selectedLessonId,
+    (l: Lesson) => l.id === selectedLessonId,
   );
 
   const handleLessonComplete = async (score: number, passed: boolean) => {
     try {
-      const result = await apiClient.post(`/courses/${id}/complete_lesson/`, {
-        lesson_id: selectedLessonId,
-        score: score,
-      });
+      // ✅ Типизируем ответ
+      const result = await apiClient.post<CompleteLessonResponse>(
+        `/courses/${id}/complete_lesson/`,
+        {
+          lesson_id: selectedLessonId,
+          score: score,
+        },
+      );
 
-      setProgress(result);
+      setProgress(result as unknown as Progress);
       mutateProgress();
       mutate();
 
@@ -92,13 +165,13 @@ export default function CoursePage() {
 
   const isLessonCompleted = (lessonId: number) => {
     if (!progress?.lessons) return false;
-    const lesson = progress.lessons.find((l: any) => l.lesson_id === lessonId);
+    const lesson = progress.lessons.find((l) => l.lesson_id === lessonId);
     return lesson?.is_completed || false;
   };
 
   const getLessonScore = (lessonId: number) => {
     if (!progress?.lessons) return 0;
-    const lesson = progress.lessons.find((l: any) => l.lesson_id === lessonId);
+    const lesson = progress.lessons.find((l) => l.lesson_id === lessonId);
     return lesson?.score || 0;
   };
 
@@ -206,7 +279,7 @@ export default function CoursePage() {
                 Уроки ({course.lessons?.length || 0})
               </h2>
               <div className="space-y-1">
-                {course.lessons?.map((lesson: any, index: number) => {
+                {course.lessons?.map((lesson: Lesson, index: number) => {
                   const completed = isLessonCompleted(lesson.id);
                   const score = getLessonScore(lesson.id);
                   return (
@@ -325,7 +398,7 @@ export default function CoursePage() {
                   <button
                     onClick={() => {
                       const currentIndex = course.lessons.findIndex(
-                        (l: any) => l.id === selectedLesson.id,
+                        (l: Lesson) => l.id === selectedLesson.id,
                       );
                       if (currentIndex > 0) {
                         setSelectedLessonId(
@@ -341,7 +414,7 @@ export default function CoursePage() {
                   <button
                     onClick={() => {
                       const currentIndex = course.lessons.findIndex(
-                        (l: any) => l.id === selectedLesson.id,
+                        (l: Lesson) => l.id === selectedLesson.id,
                       );
                       if (currentIndex < course.lessons.length - 1) {
                         setSelectedLessonId(
@@ -368,6 +441,46 @@ export default function CoursePage() {
         </div>
 
         {/* Последние курсы */}
+        {latestCourses && latestCourses.length > 0 && (
+          <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              🆕 Последние курсы
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {latestCourses
+                .filter((c: Course) => c.id !== course.id)
+                .slice(0, 6)
+                .map((c: Course) => (
+                  <Link
+                    key={c.id}
+                    href={`/courses/${c.id}/promo`}
+                    className="bg-gray-50 rounded-lg p-3 hover:shadow-md transition flex items-center gap-3"
+                  >
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-indigo-50 rounded flex items-center justify-center text-2xl flex-shrink-0">
+                      {c.cover_url ? (
+                        <img
+                          src={c.cover_url}
+                          alt={c.title}
+                          className="w-full h-full object-cover rounded"
+                        />
+                      ) : (
+                        "📚"
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{c.title}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {c.topic}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {c.lessons_count} уроков
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

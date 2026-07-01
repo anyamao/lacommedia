@@ -50,6 +50,9 @@ const typePaths: Record<string, string> = {
   article: "articles",
 };
 
+// ✅ Fetcher
+const fetcher = <T,>(url: string): Promise<T> => apiClient.get<T>(url);
+
 export default function PersonDetailPage() {
   const params = useParams();
   const id = parseInt(params.id as string);
@@ -59,7 +62,7 @@ export default function PersonDetailPage() {
     data: person,
     isLoading,
     error,
-  } = useSWR(`/people/${id}/`, () => apiClient.get(`/people/${id}/`));
+  } = useSWR<Person>(`/people/${id}/`, fetcher<Person>);
 
   if (isLoading) {
     return (
