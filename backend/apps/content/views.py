@@ -5,14 +5,58 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import FilterSet, CharFilter, NumberFilter
 from django.db import models
 from django.shortcuts import get_object_or_404
-from .models import Content, Review, ReviewReaction, QuizQuestion
+from .models import Content, Review, ReviewReaction, QuizQuestion, Person
 from .serializers import (
     ContentListSerializer,
     ContentDetailSerializer,
     ReviewSerializer,
+    PersonSerializer,
+    PersonListSerializer,
     ReviewCreateSerializer,
     QuizQuestionSerializer,
 )
+from rest_framework.permissions import (
+    IsAuthenticatedOrReadOnly,
+    IsAuthenticated,
+    AllowAny,
+)
+
+
+class PersonViewSet(viewsets.ModelViewSet):
+    """API для управления людьми"""
+
+    queryset = Person.objects.filter(is_active=True)
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.OrderingFilter,
+        filters.SearchFilter,
+    ]
+    search_fields = ["first_name", "last_name", "biography", "birth_country"]
+    filterset_fields = ["occupation", "birth_country"]
+    ordering_fields = ["first_name", "last_name", "created_at"]
+    ordering = ["last_name", "first_name"]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return PersonListSerializer
+        return PersonSerializer
+
+    @action(detail=True, methods=["get"])
+    def content(self, request, pk=None):
+        """Получить весь контент, связанный с человеком"""
+        person = self.get_object()
+        from .models import Content
+
+        content = Content.objects.filter(
+            is_active=True, extra_data__person_id=person.id
+        ).order_by("-created_at")
+
+        from .serializers import ContentListSerializer
+
+        return Response(
+            ContentListSerializer(content, many=True, context={"request": request}).data
+        )
 
 
 class ContentFilter(FilterSet):

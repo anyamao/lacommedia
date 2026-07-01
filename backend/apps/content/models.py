@@ -255,6 +255,78 @@ class ReviewReaction(models.Model):
         return f"{self.user.username} - {self.reaction_type} - {self.review.id}"
 
 
+class Person(models.Model):
+    """Модель для людей (авторы, режиссеры, художники и т.д.)"""
+
+    class Occupation(models.TextChoices):
+        WRITER = "writer", "Писатель"
+        DIRECTOR = "director", "Режиссёр"
+        ARTIST = "artist", "Художник"
+        COMPOSER = "composer", "Композитор"
+        ACTOR = "actor", "Актёр"
+        OTHER = "other", "Другое"
+
+    first_name = models.CharField(max_length=100, verbose_name="Имя")
+    last_name = models.CharField(max_length=100, blank=True, verbose_name="Фамилия")
+    image = models.ImageField(
+        upload_to="people/", blank=True, null=True, verbose_name="Фото"
+    )
+    date_of_birth = models.DateField(
+        null=True, blank=True, verbose_name="Дата рождения"
+    )
+    date_of_death = models.DateField(null=True, blank=True, verbose_name="Дата смерти")
+    birth_country = models.CharField(
+        max_length=100, blank=True, verbose_name="Страна рождения"
+    )
+    occupation = models.CharField(
+        max_length=20, choices=Occupation.choices, verbose_name="Профессия"
+    )
+    biography = models.TextField(blank=True, verbose_name="Биография")
+    interesting_facts = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Интересные факты",
+        help_text="Массив объектов {title: 'Заголовок', fact: 'Текст факта'}",
+    )
+    # Связь с контентом (через extra_data)
+    # content = models.ManyToManyField(Content, blank=True, related_name='people')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "content_person"
+        ordering = ["last_name", "first_name"]
+        indexes = [
+            models.Index(fields=["last_name", "first_name"]),
+            models.Index(fields=["occupation"]),
+        ]
+        verbose_name = "Человек"
+        verbose_name_plural = "Люди"
+
+    def __str__(self):
+        if self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.first_name
+
+    @property
+    def full_name(self):
+        if self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.first_name
+
+    @property
+    def image_url(self):
+        if self.image:
+            return self.image.url
+        return None
+
+    @property
+    def is_alive(self):
+        return self.date_of_death is None
+
+
 class QuizQuestion(models.Model):
     content = models.ForeignKey(
         Content,

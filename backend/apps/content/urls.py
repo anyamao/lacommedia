@@ -8,16 +8,25 @@ from .views import (
     ReviewDeleteView,
     ReviewReactionView,
     QuizQuestionsView,
+    PersonViewSet,
 )
 
 router = DefaultRouter()
-router.register("", ContentViewSet, basename="content")
+router.register(
+    "content", ContentViewSet, basename="content"
+)  # ✅ Добавляем 'content/'
+router.register("people", PersonViewSet, basename="person")  # ✅ 'people/'
 
 urlpatterns = [
     path("", include(router.urls)),
-    path("<int:content_id>/reviews/", ReviewListView.as_view(), name="review-list"),
+    # Отзывы для контента
     path(
-        "<int:content_id>/reviews/create/",
+        "content/<int:content_id>/reviews/",
+        ReviewListView.as_view(),
+        name="review-list",
+    ),
+    path(
+        "content/<int:content_id>/reviews/create/",
         ReviewCreateView.as_view(),
         name="review-create",
     ),
@@ -28,5 +37,9 @@ urlpatterns = [
         ReviewReactionView.as_view(),
         name="review-react",
     ),
-    path("<int:content_id>/quiz/", QuizQuestionsView.as_view(), name="quiz-questions"),
+    path(
+        "content/<int:content_id>/quiz/",
+        QuizQuestionsView.as_view(),
+        name="quiz-questions",
+    ),
 ]

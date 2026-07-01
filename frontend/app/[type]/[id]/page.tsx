@@ -11,7 +11,7 @@ import { QuizSection } from "@/components/books/QuizSection";
 import { ActionButtons } from "@/components/interactions/ActionButtons";
 import { apiClient } from "@/lib/api/client";
 
-// ✅ Определяем тип из пути
+// Определяем тип из пути
 const getContentTypeFromPath = (pathname: string): string => {
   if (pathname.startsWith("/books")) return "book";
   if (pathname.startsWith("/movies")) return "movie";
@@ -21,7 +21,6 @@ const getContentTypeFromPath = (pathname: string): string => {
   return "book";
 };
 
-// ✅ Определяем путь для ссылок
 const getTypePath = (pathname: string): string => {
   if (pathname.startsWith("/books")) return "books";
   if (pathname.startsWith("/movies")) return "movies";
@@ -73,11 +72,9 @@ export default function ContentDetailPage() {
   });
   const [latestContent, setLatestContent] = useState<any[]>([]);
 
-  // ✅ Определяем тип из пути
   const contentType = getContentTypeFromPath(pathname);
   const typePath = getTypePath(pathname);
 
-  // Загружаем похожее
   useEffect(() => {
     if (content?.id) {
       apiClient
@@ -87,7 +84,6 @@ export default function ContentDetailPage() {
     }
   }, [content?.id]);
 
-  // Загружаем последние 10 добавлений
   useEffect(() => {
     apiClient
       .get("/content/latest/?limit=10")
@@ -151,6 +147,7 @@ export default function ContentDetailPage() {
     content.extra_data?.composer ||
     content.extra_data?.artist ||
     "";
+  const personId = content.extra_data?.person_id;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -191,8 +188,22 @@ export default function ContentDetailPage() {
               <h1 className="text-3xl font-bold text-gray-800">
                 {content.title}
               </h1>
+
+              {/* ✅ Автор с ссылкой на /people */}
               {author && (
-                <p className="text-xl text-gray-600 mt-1">✍️ {author}</p>
+                <p className="text-xl text-gray-600 mt-1">
+                  ✍️{" "}
+                  {personId ? (
+                    <Link
+                      href={`/people/${personId}`}
+                      className="hover:text-blue-600 hover:underline"
+                    >
+                      {author}
+                    </Link>
+                  ) : (
+                    author
+                  )}
+                </p>
               )}
 
               <div className="flex flex-wrap gap-2 mt-3">
@@ -480,7 +491,7 @@ export default function ContentDetailPage() {
           </div>
         </div>
 
-        {/* ✅ Лента последних добавлений */}
+        {/* Лента последних добавлений */}
         {latestContent.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-8">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">

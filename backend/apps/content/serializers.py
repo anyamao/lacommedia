@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Content, Character, Review, ReviewReaction, QuizQuestion
+from .models import Content, Character, Review, ReviewReaction, QuizQuestion, Person
 
 
 class CharacterSerializer(serializers.ModelSerializer):
@@ -91,6 +91,94 @@ class ReviewSerializer(serializers.ModelSerializer):
             return None
         reaction = obj.reactions.filter(user=request.user).first()
         return reaction.reaction_type if reaction else None
+
+
+class PersonSerializer(serializers.ModelSerializer):
+    full_name = serializers.ReadOnlyField()
+    image_url = serializers.SerializerMethodField()
+    is_alive = serializers.ReadOnlyField()
+    related_content_count = serializers.SerializerMethodField()
+    related_content = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Person
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "full_name",
+            "image",
+            "image_url",
+            "date_of_birth",
+            "date_of_death",
+            "is_alive",
+            "birth_country",
+            "occupation",
+            "biography",
+            "interesting_facts",
+            "related_content_count",
+            "related_content",
+            "created_at",
+            "updated_at",
+            "is_active",
+        ]
+        read_only_fields = ["created_at", "updated_at"]
+
+    def get_image_url(self, obj):
+        return obj.image_url
+
+    def get_related_content_count(self, obj):
+        """Количество связанного контента"""
+        from .models import Content
+
+        return Content.objects.filter(
+            is_active=True, extra_data__person_id=obj.id
+        ).count()
+
+    def get_related_content(self, obj):
+        """Связанный контент (до 6 штук)"""
+        from .models import Content
+        from .serializers import ContentListSerializer
+
+        content = Content.objects.filter(
+            is_active=True, extra_data__person_id=obj.id
+        ).order_by("-created_at")[:6]
+
+        return ContentListSerializer(content, many=True, context=self.context).data
+
+
+class PersonListSerializer(serializers.ModelSerializer):
+    full_name = serializers.ReadOnlyField()
+    image_url = serializers.SerializerMethodField()
+    is_alive = serializers.ReadOnlyField()
+    related_content_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Person
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "full_name",
+            "image",
+            "image_url",
+            "date_of_birth",
+            "date_of_death",
+            "is_alive",
+            "birth_country",
+            "occupation",
+            "related_content_count",
+        ]
+
+    def get_image_url(self, obj):
+        return obj.image_url
+
+    def get_related_content_count(self, obj):
+        from .models import Content
+
+        return Content.objects.filter(
+            is_active=True, extra_data__person_id=obj.id
+        ).count()
 
 
 class ContentListSerializer(serializers.ModelSerializer):

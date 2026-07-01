@@ -11,19 +11,13 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # Auth
     path("api/v1/auth/", include("apps.users.urls")),
-    # JWT
     path("api/v1/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/v1/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/v1/token/verify/", TokenVerifyView.as_view(), name="token_verify"),
-    # ✅ Content API (универсальный)
-    path("api/v1/content/", include("apps.content.urls")),
-    # Books (старый API — можно оставить для совместимости)
+    path("api/v1/", include("apps.content.urls")),  # ✅ Все content API здесь
     path("api/v1/books/", include("apps.books.urls")),
-    # Interactions
     path("api/v1/interactions/", include("apps.interactions.urls")),
-    # API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
