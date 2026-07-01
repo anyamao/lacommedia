@@ -353,3 +353,107 @@ class QuizQuestion(models.Model):
 
     def __str__(self):
         return f"{self.content.title} - Вопрос {self.id}"
+
+
+class Course(models.Model):
+    """Курс"""
+
+    title = models.CharField(max_length=255, verbose_name="Название")
+    description = models.TextField(verbose_name="Описание")
+    cover = models.ImageField(
+        upload_to="courses/", blank=True, null=True, verbose_name="Обложка"
+    )
+    topic = models.CharField(max_length=100, verbose_name="Тема")
+    authors = models.JSONField(
+        default=list, verbose_name="Авторы", help_text="Массив строк с именами авторов"
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "content_course"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["topic"]),
+            models.Index(fields=["title"]),
+        ]
+        verbose_name = "Курс"
+        verbose_name_plural = "Курсы"
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def cover_url(self):
+        if self.cover:
+            return self.cover.url
+        return None
+
+    @property
+    def total_time(self):
+        """Общее время курса в минутах"""
+        return sum(lesson.duration for lesson in self.lessons.filter(is_active=True))
+
+    @property
+    def lessons_count(self):
+        return self.lessons.filter(is_active=True).count()
+
+
+class Lesson(models.Model):
+    """Урок в курсе"""
+
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="lessons", verbose_name="Курс"
+    )
+    title = models.CharField(max_length=255, verbose_name="Название урока")
+    content = models.TextField(verbose_name="Содержание урока")
+    duration = models.PositiveIntegerField(
+        default=5, verbose_name="Длительность (в минутах)"
+    )
+    order = models.PositiveIntegerField(default=0, verbose_name="Порядок")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "content_lesson"
+        ordering = ["order", "created_at"]
+        indexes = [
+            models.Index(fields=["course", "order"]),
+        ]
+        verbose_name = "Урок"
+        verbose_name_plural = "Уроки"
+
+    def __str__(self):
+        return f"{self.course.title} - {self.title}"
+
+
+class LessonQuizQuestion(models.Model):
+    """Вопросы для теста урока"""
+
+    lesson = models.ForeignKey(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name="quiz_questions",
+        verbose_name="Урок",
+    )
+    question = models.TextField(verbose_name="Вопрос")
+    options = models.JSONField(
+        default=list,
+        verbose_name="Варианты ответов",
+        help_text="Массив строк с вариантами ответов",
+    )
+    correct_answer = models.PositiveSmallIntegerField(
+        verbose_name="Правильный ответ (индекс в options)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "content_lesson_quiz_question"
+        ordering = ["id"]
+        verbose_name = "Вопрос теста урока"
+        verbose_name_plural = "Вопросы теста урока"
+
+    def __str__(self):
+        return f"{self.lesson.title} - Вопрос {self.id}"

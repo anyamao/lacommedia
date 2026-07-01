@@ -9,6 +9,7 @@ from .views import (
     ReviewReactionView,
     QuizQuestionsView,
     PersonViewSet,
+    CourseViewSet,
 )
 
 router = DefaultRouter()
@@ -16,7 +17,7 @@ router.register(
     "content", ContentViewSet, basename="content"
 )  # ✅ Добавляем 'content/'
 router.register("people", PersonViewSet, basename="person")  # ✅ 'people/'
-
+router.register("courses", CourseViewSet, basename="course")
 urlpatterns = [
     path("", include(router.urls)),
     # Отзывы для контента

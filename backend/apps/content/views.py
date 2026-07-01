@@ -5,13 +5,26 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import FilterSet, CharFilter, NumberFilter
 from django.db import models
 from django.shortcuts import get_object_or_404
-from .models import Content, Review, ReviewReaction, QuizQuestion, Person
+from .models import (
+    Content,
+    Review,
+    ReviewReaction,
+    QuizQuestion,
+    Person,
+    Course,
+    Lesson,
+    LessonQuizQuestion,
+)
 from .serializers import (
     ContentListSerializer,
     ContentDetailSerializer,
     ReviewSerializer,
     PersonSerializer,
     PersonListSerializer,
+    CourseDetailSerializer,
+    CourseListSerializer,
+    LessonSerializer,
+    LessonQuizQuestionSerializer,
     ReviewCreateSerializer,
     QuizQuestionSerializer,
 )
@@ -20,6 +33,42 @@ from rest_framework.permissions import (
     IsAuthenticated,
     AllowAny,
 )
+
+
+class CourseViewSet(viewsets.ModelViewSet):
+    """API для управления курсами"""
+
+    queryset = Course.objects.filter(is_active=True).prefetch_related(
+        "lessons", "lessons__quiz_questions"
+    )
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.OrderingFilter,
+        filters.SearchFilter,
+    ]
+    search_fields = ["title", "description", "topic"]
+    filterset_fields = ["topic", "is_active"]
+    ordering_fields = ["title", "created_at", "total_time"]
+    ordering = ["-created_at"]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return CourseListSerializer
+        return CourseDetailSerializer
+
+    @action(detail=True, methods=["get"])
+    def lessons(self, request, pk=None):
+        """Получить все уроки курса"""
+        course = self.get_object()
+        lessons = course.lessons.filter(is_active=True).order_by("order")
+        return Response(LessonSerializer(lessons, many=True).data)
+
+    @action(detail=True, methods=["get"])
+    def total_time(self, request, pk=None):
+        """Получить общее время курса"""
+        course = self.get_object()
+        return Response({"total_time": course.total_time})
 
 
 class PersonViewSet(viewsets.ModelViewSet):

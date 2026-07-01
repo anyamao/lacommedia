@@ -13,9 +13,14 @@ interface QuizQuestion {
 interface QuizProps {
   contentId: number;
   questions: QuizQuestion[];
+  title?: string;
 }
 
-export function QuizSection({ contentId, questions }: QuizProps) {
+export function QuizSection({
+  contentId,
+  questions,
+  title = "🧠 Тест",
+}: QuizProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -23,10 +28,8 @@ export function QuizSection({ contentId, questions }: QuizProps) {
   const [showCorrect, setShowCorrect] = useState(false);
   const { showToast } = useToast();
 
-  // ✅ Используем вопросы из пропсов
   const hasQuestions = questions && questions.length > 0;
 
-  // Инициализируем ответы при старте
   const startQuiz = () => {
     setQuizStarted(true);
     setShowResults(false);
@@ -69,25 +72,24 @@ export function QuizSection({ contentId, questions }: QuizProps) {
     return correct;
   };
 
-  // ✅ Если нет вопросов — показываем сообщение
   if (!hasQuestions) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">Для этого контента пока нет теста</p>
+      <div className="text-center py-4">
+        <p className="text-gray-500 text-sm">Для этого урока пока нет теста</p>
       </div>
     );
   }
 
   if (!quizStarted) {
     return (
-      <div className="text-center py-8">
-        <h3 className="text-xl font-semibold mb-3">🧠 Тест по контенту</h3>
-        <p className="text-gray-600 mb-4">
-          Проверьте свои знания! В тесте {questions.length} вопросов.
+      <div className="text-center py-6">
+        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <p className="text-gray-600 text-sm mb-4">
+          В тесте {questions.length} вопросов. Проверьте свои знания!
         </p>
         <button
           onClick={startQuiz}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
         >
           Начать тест
         </button>
@@ -103,34 +105,41 @@ export function QuizSection({ contentId, questions }: QuizProps) {
 
     return (
       <div>
-        <div className="text-center py-6 border-b mb-6">
-          <h3 className="text-2xl font-bold mb-2">
+        <div className="text-center py-4 border-b mb-4">
+          <h3 className="text-xl font-bold mb-1">
             {isPassed ? "🎉 Отлично!" : "📚 Попробуйте еще раз!"}
           </h3>
-          <p className="text-lg">
+          <p className="text-base">
             Правильных ответов:{" "}
             <span className="font-bold text-blue-600">{score}</span> из {total}
           </p>
           <p className="text-sm text-gray-500">{percentage}%</p>
-          <div className="mt-4 flex justify-center gap-3">
+          <div className="mt-3 flex justify-center gap-3 flex-wrap">
             <button
               onClick={() => setShowCorrect(!showCorrect)}
-              className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 transition"
             >
-              {showCorrect
-                ? "Скрыть правильные ответы"
-                : "Показать правильные ответы"}
+              {showCorrect ? "Скрыть ответы" : "Показать ответы"}
             </button>
             <button
               onClick={startQuiz}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
             >
               Пройти заново
+            </button>
+            <button
+              onClick={() => {
+                setShowResults(false);
+                setCurrentQuestionIndex(0);
+              }}
+              className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            >
+              ← К вопросам
             </button>
           </div>
         </div>
 
-        <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+        <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
           {questions.map((q, idx) => {
             const userAnswer = selectedAnswers[idx];
             const isCorrect = userAnswer === q.correct_answer;
@@ -139,7 +148,7 @@ export function QuizSection({ contentId, questions }: QuizProps) {
             return (
               <div
                 key={q.id}
-                className={`p-4 border rounded-lg ${
+                className={`p-3 border rounded-lg text-sm ${
                   showCorrect
                     ? isCorrect
                       ? "border-green-400 bg-green-50"
@@ -149,24 +158,23 @@ export function QuizSection({ contentId, questions }: QuizProps) {
                     : "border-gray-200 hover:bg-gray-50"
                 }`}
               >
-                {/* ... остальной код вопроса */}
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0">
-                    <span
-                      className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-sm font-medium ${
-                        showCorrect && isCorrect
-                          ? "bg-green-500 text-white"
-                          : showCorrect && answered && !isCorrect
-                            ? "bg-red-500 text-white"
-                            : "bg-gray-200 text-gray-600"
-                      }`}
-                    >
-                      {idx + 1}
-                    </span>
-                  </div>
+                <div className="flex items-start gap-2">
+                  <span
+                    className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-medium flex-shrink-0 ${
+                      showCorrect && isCorrect
+                        ? "bg-green-500 text-white"
+                        : showCorrect && answered && !isCorrect
+                          ? "bg-red-500 text-white"
+                          : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {idx + 1}
+                  </span>
                   <div className="flex-1">
-                    <p className="font-medium text-gray-800">{q.question}</p>
-                    <div className="mt-2 space-y-1">
+                    <p className="font-medium text-gray-800 text-sm">
+                      {q.question}
+                    </p>
+                    <div className="mt-1.5 space-y-1">
                       {q.options.map((option, optIdx) => {
                         const isSelected = userAnswer === optIdx;
                         const isCorrectAnswer =
@@ -183,21 +191,21 @@ export function QuizSection({ contentId, questions }: QuizProps) {
                         return (
                           <div
                             key={optIdx}
-                            className={`px-3 py-1.5 rounded-lg border text-sm ${bgColor} ${
+                            className={`px-2 py-1 rounded border text-xs ${bgColor} ${
                               isSelected || (showCorrect && isCorrectAnswer)
                                 ? "border-2"
                                 : "border-gray-200"
                             }`}
                           >
-                            <span className="font-medium text-gray-500 mr-2">
+                            <span className="font-medium text-gray-500 mr-1.5">
                               {String.fromCharCode(65 + optIdx)}.
                             </span>
                             {option}
                             {showCorrect && isCorrectAnswer && (
-                              <span className="ml-2 text-green-600">✅</span>
+                              <span className="ml-1.5 text-green-600">✅</span>
                             )}
                             {showCorrect && isSelected && !isCorrectAnswer && (
-                              <span className="ml-2 text-red-600">❌</span>
+                              <span className="ml-1.5 text-red-600">❌</span>
                             )}
                           </div>
                         );
@@ -209,39 +217,27 @@ export function QuizSection({ contentId, questions }: QuizProps) {
             );
           })}
         </div>
-
-        <div className="mt-6 flex justify-center">
-          <button
-            onClick={() => {
-              setShowResults(false);
-              setCurrentQuestionIndex(0);
-            }}
-            className="px-4 py-2 text-sm text-blue-600 hover:underline"
-          >
-            ← Вернуться к вопросам
-          </button>
-        </div>
       </div>
     );
   }
 
-  // Отображение текущего вопроса
+  // Текущий вопрос
   const currentQuestion = questions[currentQuestionIndex];
   const currentAnswer = selectedAnswers[currentQuestionIndex];
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-500">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-gray-500">
             Вопрос {currentQuestionIndex + 1} из {questions.length}
           </span>
-          <div className="flex gap-1">
+          <div className="flex gap-0.5">
             {questions.map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => goToQuestion(idx)}
-                className={`w-8 h-8 rounded-full text-xs font-medium transition ${
+                className={`w-6 h-6 rounded-full text-[10px] font-medium transition ${
                   idx === currentQuestionIndex
                     ? "bg-blue-600 text-white"
                     : selectedAnswers[idx] !== -1
@@ -254,24 +250,23 @@ export function QuizSection({ contentId, questions }: QuizProps) {
             ))}
           </div>
         </div>
-        <span className="text-sm text-gray-400">
-          {selectedAnswers.filter((a) => a !== -1).length} / {questions.length}{" "}
-          отвечено
+        <span className="text-xs text-gray-400">
+          {selectedAnswers.filter((a) => a !== -1).length} / {questions.length}
         </span>
       </div>
 
-      <div className="bg-gray-50 rounded-lg p-6">
-        <h4 className="text-lg font-medium text-gray-800 mb-4">
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="text-base font-medium text-gray-800 mb-3">
           {currentQuestion.question}
         </h4>
-        <div className="space-y-3">
+        <div className="space-y-2">
           {currentQuestion.options.map((option, idx) => {
             const isSelected = currentAnswer === idx;
             return (
               <button
                 key={idx}
                 onClick={() => handleAnswerSelect(idx)}
-                className={`w-full text-left px-4 py-3 rounded-lg border transition ${
+                className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition ${
                   isSelected
                     ? "border-blue-500 bg-blue-50 text-blue-700"
                     : "border-gray-200 hover:bg-gray-100"
@@ -287,20 +282,20 @@ export function QuizSection({ contentId, questions }: QuizProps) {
         </div>
       </div>
 
-      <div className="flex justify-between mt-6">
+      <div className="flex justify-between mt-4">
         <button
           onClick={goToPreviousQuestion}
           disabled={currentQuestionIndex === 0}
-          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           ← Назад
         </button>
         <button
           onClick={goToNextQuestion}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
         >
           {currentQuestionIndex === questions.length - 1
-            ? "📊 Узнать результат"
+            ? "📊 Результат"
             : "Далее →"}
         </button>
       </div>
