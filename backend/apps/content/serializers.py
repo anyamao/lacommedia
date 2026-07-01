@@ -257,6 +257,7 @@ class CourseListSerializer(serializers.ModelSerializer):
     cover_url = serializers.SerializerMethodField()
     total_time = serializers.ReadOnlyField()
     lessons_count = serializers.ReadOnlyField()
+    is_completed = serializers.SerializerMethodField()  # ✅ Добавляем
 
     class Meta:
         model = Course
@@ -270,6 +271,7 @@ class CourseListSerializer(serializers.ModelSerializer):
             "authors",
             "total_time",
             "lessons_count",
+            "is_completed",  # ✅ Добавляем
             "is_active",
             "created_at",
             "updated_at",
@@ -277,6 +279,15 @@ class CourseListSerializer(serializers.ModelSerializer):
 
     def get_cover_url(self, obj):
         return obj.cover_url
+
+    def get_is_completed(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        from .models import CourseProgress
+
+        progress = CourseProgress.objects.filter(course=obj, user=request.user).first()
+        return progress.is_completed if progress else False
 
 
 class CourseDetailSerializer(CourseListSerializer):

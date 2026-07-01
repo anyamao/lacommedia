@@ -14,7 +14,8 @@ class Content(models.Model):
         MOVIE = "movie", "Фильм"
         PAINTING = "painting", "Картина"
         MUSIC = "music", "Музыка"
-        ARTICLE = "article", "Статья"  # ✅ Добавлено
+        ARTICLE = "article", "Статья"
+        COURSE = "course", "Курс"
 
     content_type = models.CharField(
         max_length=20, choices=ContentType.choices, verbose_name="Тип контента"
@@ -255,9 +256,35 @@ class ReviewReaction(models.Model):
         return f"{self.user.username} - {self.reaction_type} - {self.review.id}"
 
 
-class Person(models.Model):
-    """Модель для людей (авторы, режиссеры, художники и т.д.)"""
+class QuizQuestion(models.Model):
+    content = models.ForeignKey(
+        Content,
+        on_delete=models.CASCADE,
+        related_name="quiz_questions",
+        verbose_name="Контент",
+    )
+    question = models.TextField(verbose_name="Вопрос")
+    options = models.JSONField(
+        default=list,
+        verbose_name="Варианты ответов",
+        help_text="Массив строк с вариантами ответов",
+    )
+    correct_answer = models.PositiveSmallIntegerField(
+        verbose_name="Правильный ответ (индекс в options)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        db_table = "content_quiz_question"
+        ordering = ["id"]
+        verbose_name = "Вопрос теста"
+        verbose_name_plural = "Вопросы теста"
+
+    def __str__(self):
+        return f"{self.content.title} - Вопрос {self.id}"
+
+
+class Person(models.Model):
     class Occupation(models.TextChoices):
         WRITER = "writer", "Писатель"
         DIRECTOR = "director", "Режиссёр"
@@ -283,17 +310,11 @@ class Person(models.Model):
     )
     biography = models.TextField(blank=True, verbose_name="Биография")
     interesting_facts = models.JSONField(
-        default=list,
-        blank=True,
-        verbose_name="Интересные факты",
-        help_text="Массив объектов {title: 'Заголовок', fact: 'Текст факта'}",
+        default=list, blank=True, verbose_name="Интересные факты"
     )
-    # Связь с контентом (через extra_data)
-    # content = models.ManyToManyField(Content, blank=True, related_name='people')
-
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    is_active = models.BooleanField(default=True)
 
     class Meta:
         db_table = "content_person"
@@ -327,32 +348,7 @@ class Person(models.Model):
         return self.date_of_death is None
 
 
-class QuizQuestion(models.Model):
-    content = models.ForeignKey(
-        Content,
-        on_delete=models.CASCADE,
-        related_name="quiz_questions",
-        verbose_name="Контент",
-    )
-    question = models.TextField(verbose_name="Вопрос")
-    options = models.JSONField(
-        default=list,
-        verbose_name="Варианты ответов",
-        help_text="Массив строк с вариантами ответов",
-    )
-    correct_answer = models.PositiveSmallIntegerField(
-        verbose_name="Правильный ответ (индекс в options)"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "content_quiz_question"
-        ordering = ["id"]
-        verbose_name = "Вопрос теста"
-        verbose_name_plural = "Вопросы теста"
-
-    def __str__(self):
-        return f"{self.content.title} - Вопрос {self.id}"
+# ============ КУРСЫ ============
 
 
 class Course(models.Model):
@@ -392,7 +388,6 @@ class Course(models.Model):
 
     @property
     def total_time(self):
-        """Общее время курса в минутах"""
         return sum(lesson.duration for lesson in self.lessons.filter(is_active=True))
 
     @property
@@ -457,3 +452,67 @@ class LessonQuizQuestion(models.Model):
 
     def __str__(self):
         return f"{self.lesson.title} - Вопрос {self.id}"
+
+
+# ============ ПРОГРЕСС ============
+
+
+class CourseProgress(models.Model):
+    """Прогресс пользователя по курсу"""
+
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="progresses", verbose_name="Курс"
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="course_progresses",
+        verbose_name="Пользователь",
+    )
+    is_completed = models.BooleanField(default=False, verbose_name="Курс пройден")
+    completed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="Дата прохождения"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "content_course_progress"
+        unique_together = ["course", "user"]
+        verbose_name = "Прогресс курса"
+        verbose_name_plural = "Прогрессы курсов"
+
+    def __str__(self):
+        return f"{self.user.username} - {self.course.title} ({'Пройден' if self.is_completed else 'В процессе'})"
+
+
+class LessonProgress(models.Model):
+    """Прогресс пользователя по уроку"""
+
+    lesson = models.ForeignKey(
+        Lesson, on_delete=models.CASCADE, related_name="progresses", verbose_name="Урок"
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="lesson_progresses",
+        verbose_name="Пользователь",
+    )
+    is_completed = models.BooleanField(default=False, verbose_name="Урок пройден")
+    score = models.PositiveSmallIntegerField(
+        default=0, verbose_name="Процент правильных ответов"
+    )
+    completed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="Дата прохождения"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "content_lesson_progress"
+        unique_together = ["lesson", "user"]
+        verbose_name = "Прогресс урока"
+        verbose_name_plural = "Прогрессы уроков"
+
+    def __str__(self):
+        return f"{self.user.username} - {self.lesson.title} ({self.score}%)"

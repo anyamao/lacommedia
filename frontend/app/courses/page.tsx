@@ -16,6 +16,7 @@ interface Course {
   total_time: number;
   lessons_count: number;
   created_at: string;
+  is_completed?: boolean;
 }
 
 export default function CoursesPage() {
@@ -151,6 +152,16 @@ export default function CoursesPage() {
                   <h3 className="font-bold text-gray-800 truncate">
                     {course.title}
                   </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-gray-800 truncate">
+                      {course.title}
+                    </h3>
+                    {course.is_completed && (
+                      <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full flex-shrink-0">
+                        ✅ Пройден
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500 truncate">
                     {course.topic}
                   </p>

@@ -14,7 +14,11 @@ from .models import (
     Course,
     Lesson,
     LessonQuizQuestion,
+    CourseProgress,  # ✅ Добавляем
+    LessonProgress,  # ✅ Добавляем
 )
+
+
 from .serializers import (
     ContentListSerializer,
     ContentDetailSerializer,
@@ -33,6 +37,7 @@ from rest_framework.permissions import (
     IsAuthenticated,
     AllowAny,
 )
+from django.utils import timezone
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -69,6 +74,125 @@ class CourseViewSet(viewsets.ModelViewSet):
         """Получить общее время курса"""
         course = self.get_object()
         return Response({"total_time": course.total_time})
+
+    @action(detail=True, methods=["get"])
+    def progress(self, request, pk=None):
+        """Получить прогресс пользователя по курсу"""
+        course = self.get_object()
+
+        if not request.user.is_authenticated:
+            return Response(
+                {"is_completed": False, "completed_at": None, "lessons": []}
+            )
+
+        # Прогресс курса
+        course_progress = CourseProgress.objects.filter(
+            course=course, user=request.user
+        ).first()
+
+        # Прогресс по урокам
+        lessons_progress = []
+        for lesson in course.lessons.filter(is_active=True).order_by("order"):
+            lesson_progress = LessonProgress.objects.filter(
+                lesson=lesson, user=request.user
+            ).first()
+            lessons_progress.append(
+                {
+                    "lesson_id": lesson.id,
+                    "title": lesson.title,
+                    "is_completed": lesson_progress.is_completed
+                    if lesson_progress
+                    else False,
+                    "score": lesson_progress.score if lesson_progress else 0,
+                }
+            )
+
+        return Response(
+            {
+                "is_completed": course_progress.is_completed
+                if course_progress
+                else False,
+                "completed_at": course_progress.completed_at
+                if course_progress
+                else None,
+                "lessons": lessons_progress,
+                "total_lessons": course.lessons.filter(is_active=True).count(),
+                "completed_lessons": sum(
+                    1 for l in lessons_progress if l["is_completed"]
+                ),
+            }
+        )
+
+    @action(detail=True, methods=["post"])
+    def complete_lesson(self, request, pk=None):
+        """Завершить урок с результатом теста (сохраняется лучший результат)"""
+        course = self.get_object()
+        lesson_id = request.data.get("lesson_id")
+        score = request.data.get("score", 0)
+
+        if not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        lesson = get_object_or_404(Lesson, id=lesson_id, course=course, is_active=True)
+
+        # Получаем или создаем прогресс урока
+        lesson_progress, created = LessonProgress.objects.get_or_create(
+            lesson=lesson, user=request.user
+        )
+
+        # ✅ Сохраняем лучший результат (всегда обновляем score, если он лучше)
+        is_new_best = score > lesson_progress.score
+        if is_new_best:
+            lesson_progress.score = score
+
+        # ✅ Если урок уже пройден — оставляем пройденным
+        # Если урок не пройден и score >= 75 — помечаем как пройденный
+        if not lesson_progress.is_completed and score >= 75:
+            lesson_progress.is_completed = True
+            lesson_progress.completed_at = timezone.now()
+        # ✅ Если урок уже пройден — оставляем is_completed = True, даже если новый score < 75
+
+        lesson_progress.save()
+
+        # Проверяем прогресс курса
+        all_lessons = course.lessons.filter(is_active=True).count()
+        completed_lessons = LessonProgress.objects.filter(
+            lesson__course=course,
+            lesson__is_active=True,
+            user=request.user,
+            is_completed=True,
+        ).count()
+
+        course_progress, _ = CourseProgress.objects.get_or_create(
+            course=course, user=request.user
+        )
+
+        # Курс пройден, если выполнено >=75% уроков
+        course_completed = False
+        completion_percentage = 0
+        if all_lessons > 0:
+            completion_percentage = (completed_lessons / all_lessons) * 100
+            if completion_percentage >= 75 and not course_progress.is_completed:
+                course_progress.is_completed = True
+                course_progress.completed_at = timezone.now()
+                course_progress.save()
+                course_completed = True
+
+        return Response(
+            {
+                "lesson_completed": lesson_progress.is_completed,
+                "score": lesson_progress.score,
+                "is_new_best": is_new_best,
+                "course_completed": course_progress.is_completed,
+                "course_completed_now": course_completed,
+                "completed_lessons": completed_lessons,
+                "total_lessons": all_lessons,
+                "completion_percentage": completion_percentage,
+            }
+        )
 
 
 class PersonViewSet(viewsets.ModelViewSet):
