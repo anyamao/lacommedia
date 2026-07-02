@@ -1,6 +1,7 @@
 "use client";
+
 import { useToast } from "@/context/ToastContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   useProfile,
@@ -8,6 +9,7 @@ import {
   useChangePassword,
 } from "@/hooks/useProfile";
 import { apiClient } from "@/lib/api/client";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -34,6 +36,13 @@ export default function ProfilePage() {
   });
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // Загрузка аватара
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Удаление аккаунта
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -73,7 +82,7 @@ export default function ProfilePage() {
 
     if (passwordData.new_password.length < 12) {
       setPasswordError("Пароль должен быть минимум 12 символов");
-      showToast("Пароли не совпадают", "error");
+      showToast("Пароль должен быть минимум 12 символов", "error");
       return;
     }
 
@@ -92,6 +101,76 @@ export default function ProfilePage() {
       showToast("Пароль успешно изменен!", "success");
     } else if (result.error) {
       setPasswordError(result.error);
+      showToast(result.error, "error");
+    }
+  };
+
+  // ✅ Загрузка аватара
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Проверка размера
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("Файл слишком большой. Максимум 5MB.", "error");
+      return;
+    }
+
+    // Проверка типа
+    if (!file.type.startsWith("image/")) {
+      showToast("Поддерживаются только изображения.", "error");
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    try {
+      const response = await apiClient.post(
+        "/auth/profile/avatar/upload/",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
+
+      showToast("Аватар успешно обновлен!", "success");
+      mutate(); // Обновляем данные профиля
+    } catch (error: any) {
+      showToast(
+        error.response?.data?.error || "Ошибка загрузки аватара",
+        "error",
+      );
+    } finally {
+      setUploading(false);
+      // Сброс инпута
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  // ✅ Удаление аватара
+  const handleRemoveAvatar = async () => {
+    try {
+      await apiClient.delete("/auth/profile/avatar/delete/");
+      showToast("Аватар удален", "info");
+      mutate();
+    } catch (error) {
+      showToast("Ошибка удаления аватара", "error");
+    }
+  };
+
+  // ✅ Удаление аккаунта
+  const handleDeleteAccount = async () => {
+    try {
+      await apiClient.delete("/auth/profile/delete/");
+      localStorage.removeItem("access_token");
+      showToast("Аккаунт удален", "info");
+      router.push("/");
+    } catch (error) {
+      showToast("Ошибка при удалении аккаунта", "error");
     }
   };
 
@@ -123,10 +202,11 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          {/* Шапка профиля */}
+          {/* Шапка профиля с аватаром */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8 sm:px-10">
             <div className="flex items-center space-x-4">
-              <div className="flex-shrink-0">
+              {/* ✅ Аватар с возможностью загрузки */}
+              <div className="relative flex-shrink-0 group">
                 {profile.avatar_url ? (
                   <img
                     src={profile.avatar_url}
@@ -138,8 +218,28 @@ export default function ProfilePage() {
                     {profile.full_name?.[0] || profile.username?.[0] || "U"}
                   </div>
                 )}
+
+                {/* ✅ Кнопка изменения аватара (появляется при наведении) */}
+                <div
+                  className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <span className="text-white text-xs font-medium">
+                    {uploading ? "Загрузка..." : "Изменить"}
+                  </span>
+                </div>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleAvatarUpload}
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploading}
+                />
               </div>
-              <div className="text-white">
+
+              <div className="text-white flex-1">
                 <h1 className="text-2xl font-bold">
                   {profile.full_name || profile.username}
                 </h1>
@@ -156,6 +256,16 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
+
+              {/* ✅ Кнопка удаления аватара */}
+              {profile.avatar_url && (
+                <button
+                  onClick={handleRemoveAvatar}
+                  className="text-white/70 hover:text-white text-xs underline"
+                >
+                  Удалить
+                </button>
+              )}
             </div>
           </div>
 
@@ -221,6 +331,12 @@ export default function ProfilePage() {
                     className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
                   >
                     🚪 Выйти
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="px-4 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+                  >
+                    🗑️ Удалить аккаунт
                   </button>
                 </div>
 
@@ -388,6 +504,18 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* ConfirmDialog для удаления аккаунта */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Удаление аккаунта"
+        message="Вы уверены, что хотите удалить свой аккаунт? Это действие необратимо. Все ваши данные будут потеряны."
+        confirmText="Удалить навсегда"
+        cancelText="Отмена"
+        confirmColor="red"
+        onConfirm={handleDeleteAccount}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

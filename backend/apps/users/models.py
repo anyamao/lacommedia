@@ -7,6 +7,8 @@ from django.contrib.auth.models import (
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+import uuid
+import os
 
 # Валидатор для username (только буквы и цифры)
 username_validator = RegexValidator(
@@ -30,6 +32,13 @@ class UserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
+def get_avatar_upload_path(instance, filename):
+    """Генерирует путь для аватара пользователя"""
+    ext = filename.split(".")[-1].lower()
+    unique_filename = f"{uuid.uuid4().hex[:10]}.{ext}"
+    return f"avatars/{instance.id}/{unique_filename}"
+
+
 class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, verbose_name="Email")
     username = models.CharField(
@@ -49,7 +58,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name="Уровень",
     )
     avatar = models.ImageField(
-        upload_to="avatars/", blank=True, null=True, verbose_name="Аватар"
+        upload_to=get_avatar_upload_path,  # ✅ Динамический путь
+        blank=True,
+        null=True,
+        verbose_name="Аватар",
     )
     dark_theme = models.BooleanField(default=False, verbose_name="Темная тема")
     books_read_count = models.PositiveIntegerField(

@@ -15,6 +15,10 @@ from .serializers import (
 )
 from django.shortcuts import get_object_or_404
 from .models import User, Friendship
+from rest_framework.parsers import MultiPartParser, FormParser
+from PIL import Image
+import io
+from django.core.files.base import ContentFile
 
 User = get_user_model()
 
@@ -25,6 +29,90 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = RegisterSerializer
+
+
+class UploadAvatarView(views.APIView):
+    """Загрузка и обновление аватара пользователя"""
+
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        user = request.user
+
+        if "avatar" not in request.FILES:
+            return Response(
+                {"error": "Файл не найден"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        file = request.FILES["avatar"]
+
+        # ✅ Проверка размера (максимум 5MB)
+        if file.size > 5 * 1024 * 1024:
+            return Response(
+                {"error": "Файл слишком большой. Максимум 5MB."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ✅ Проверка типа файла
+        allowed_types = [
+            "image/jpeg",
+            "image/png",
+            "image/gif",
+            "image/webp",
+            "image/svg+xml",
+        ]
+        if file.content_type not in allowed_types:
+            return Response(
+                {"error": "Поддерживаются только JPEG, PNG, GIF, WebP, SVG"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ✅ Оптимизация изображения (уменьшаем до 500x500)
+        try:
+            img = Image.open(file)
+
+            # Конвертируем в RGB для JPEG
+            if img.mode in ("RGBA", "LA", "P"):
+                img = img.convert("RGB")
+
+            # Уменьшаем размер до 500x500
+            img.thumbnail((500, 500), Image.Resampling.LANCZOS)
+
+            # Сохраняем в буфер
+            output = io.BytesIO()
+            img.save(output, format="JPEG", quality=85, optimize=True)
+            output.seek(0)
+
+            # Создаем новый файл
+            new_filename = f"{uuid.uuid4().hex[:10]}.jpg"
+            user.avatar.save(new_filename, ContentFile(output.getvalue()), save=True)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Ошибка обработки изображения: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {"message": "Аватар успешно обновлен", "avatar_url": user.avatar_url},
+            status=status.HTTP_200_OK,
+        )
+
+
+class DeleteAvatarView(views.APIView):
+    """Удаление аватара пользователя"""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+
+        if user.avatar:
+            user.avatar.delete(save=True)
+            return Response({"message": "Аватар удален"}, status=status.HTTP_200_OK)
+
+        return Response({"error": "Аватар не найден"}, status=status.HTTP_404_NOT_FOUND)
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):

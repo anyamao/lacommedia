@@ -15,6 +15,8 @@ from .views import (
     AddFriendView,
     UnfriendView,  # ✅ Добавляем
     FriendsListView,
+    UploadAvatarView,
+    DeleteAvatarView,
 )
 from rest_framework_simplejwt.views import TokenVerifyView
 
@@ -43,6 +45,8 @@ urlpatterns = [
         FollowersListView.as_view(),
         name="followers",
     ),
+    path("profile/avatar/upload/", UploadAvatarView.as_view(), name="upload_avatar"),
+    path("profile/avatar/delete/", DeleteAvatarView.as_view(), name="delete_avatar"),
     path(
         "profile/<str:username>/following/",
         FollowingListView.as_view(),

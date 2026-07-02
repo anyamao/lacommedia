@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosError } from "axios";
+import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from "axios";
 
 class ApiClient {
   private client: AxiosInstance;
@@ -20,6 +20,10 @@ class ApiClient {
         const accessToken = this.getAccessToken();
         if (accessToken) {
           config.headers.Authorization = `Bearer ${accessToken}`;
+        }
+        // ✅ Если данные это FormData — убираем Content-Type (браузер сам добавит)
+        if (config.data instanceof FormData) {
+          delete config.headers["Content-Type"];
         }
         return config;
       },
@@ -86,28 +90,45 @@ class ApiClient {
     window.location.href = "/";
   }
 
-  async get<T>(url: string): Promise<T> {
-    const response = await this.client.get<T>(url);
+  // ✅ GET с параметрами
+  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.get<T>(url, config);
     return response.data;
   }
 
-  async post<T>(url: string, data?: any): Promise<T> {
-    const response = await this.client.post<T>(url, data);
+  // ✅ POST с поддержкой FormData
+  async post<T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig,
+  ): Promise<T> {
+    const response = await this.client.post<T>(url, data, config);
     return response.data;
   }
 
-  async put<T>(url: string, data?: any): Promise<T> {
-    const response = await this.client.put<T>(url, data);
+  // ✅ PUT с поддержкой FormData
+  async put<T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig,
+  ): Promise<T> {
+    const response = await this.client.put<T>(url, data, config);
     return response.data;
   }
 
-  async patch<T>(url: string, data?: any): Promise<T> {
-    const response = await this.client.patch<T>(url, data);
+  // ✅ PATCH с поддержкой FormData
+  async patch<T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig,
+  ): Promise<T> {
+    const response = await this.client.patch<T>(url, data, config);
     return response.data;
   }
 
-  async delete<T>(url: string): Promise<T> {
-    const response = await this.client.delete<T>(url);
+  // ✅ DELETE с параметрами
+  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.delete<T>(url, config);
     return response.data;
   }
 }
