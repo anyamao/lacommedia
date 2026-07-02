@@ -19,6 +19,19 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from PIL import Image
 import io
 from django.core.files.base import ContentFile
+import uuid
+import io
+from rest_framework import generics, permissions, status, views
+from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.settings import api_settings
+from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.core.files.base import ContentFile
+from PIL import Image
 
 User = get_user_model()
 
@@ -47,14 +60,14 @@ class UploadAvatarView(views.APIView):
 
         file = request.FILES["avatar"]
 
-        # ✅ Проверка размера (максимум 5MB)
+        # Проверка размера (максимум 5MB)
         if file.size > 5 * 1024 * 1024:
             return Response(
                 {"error": "Файл слишком большой. Максимум 5MB."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ✅ Проверка типа файла
+        # Проверка типа файла
         allowed_types = [
             "image/jpeg",
             "image/png",
@@ -68,7 +81,7 @@ class UploadAvatarView(views.APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ✅ Оптимизация изображения (уменьшаем до 500x500)
+        # Оптимизация изображения
         try:
             img = Image.open(file)
 
